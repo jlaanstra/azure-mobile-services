@@ -1,3 +1,5 @@
+/// <reference path="mobileservices.intellisense.js" />
+
 function read(query, user, request) {
 
     var timestamp = request.parameters.timestamp;
