@@ -39,6 +39,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{1798
 	ProjectSection(SolutionItems) = preProject
 		scripts\delete.js = scripts\delete.js
 		scripts\insert.js = scripts\insert.js
+		scripts\mobileservices.intellisense.js = scripts\mobileservices.intellisense.js
 		scripts\read.js = scripts\read.js
 		scripts\update.js = scripts\update.js
 	EndProjectSection
