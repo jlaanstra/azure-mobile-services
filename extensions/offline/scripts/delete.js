@@ -1,3 +1,5 @@
+/// <reference path="mobileservices.intellisense.js" />
+
 function del(id, user, request) {
     
     var tableName = tables.current.getTableName();

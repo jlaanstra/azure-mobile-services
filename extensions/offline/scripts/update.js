@@ -1,3 +1,5 @@
+/// <reference path="mobileservices.intellisense.js" />
+
 function update(item, user, request) {
 
     // item must have a guid
