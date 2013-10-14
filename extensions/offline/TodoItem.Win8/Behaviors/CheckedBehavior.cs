@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 
 #if NETFX_CORE
-using Windows.UI.Interactivity;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 #endif
@@ -14,6 +13,12 @@ using Windows.UI.Xaml.Controls;
 using System.Windows.Interactivity;
 using System.Windows.Controls;
 using System.Windows;
+#endif
+
+#if Win8
+using Windows.UI.Interactivity;
+#elif Win81
+using Microsoft.Xaml.Interactivity;
 #endif
 
 namespace Todo.Behavior
