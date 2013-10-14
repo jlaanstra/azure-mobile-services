@@ -38,30 +38,45 @@ namespace Todo
         /// search results, and so forth.
         /// </summary>
         /// <param name="args">Details about the launch request and process.</param>
-        protected override void OnLaunched(LaunchActivatedEventArgs args)
+        protected override void OnLaunched(LaunchActivatedEventArgs e)
         {
-            // Do not repeat app initialization when already running, just ensure that
-            // the window is active
-            if (args.PreviousExecutionState == ApplicationExecutionState.Running)
+#if DEBUG
+            if (System.Diagnostics.Debugger.IsAttached)
             {
-                Window.Current.Activate();
-                return;
+                this.DebugSettings.EnableFrameRateCounter = true;
+            }
+#endi
+            Frame rootFrame = Window.Current.Content as Frame;
+
+            // Do not repeat app initialization when the Window already has content,
+            // just ensure that the window is active
+            if (rootFrame == null)
+            {
+                // Create a Frame to act as the navigation context and navigate to the first page
+                rootFrame = new Frame();
+                // Set the default language
+                rootFrame.Language = Windows.Globalization.ApplicationLanguages.Languages[0];
+
+                if (e.PreviousExecutionState == ApplicationExecutionState.Terminated)
+                {
+                    //TODO: Load state from previously suspended application
+                }
+
+                // Place the frame in the current Window
+                Window.Current.Content = rootFrame;
             }
 
-            if (args.PreviousExecutionState == ApplicationExecutionState.Terminated)
+            if (rootFrame.Content == null)
             {
-                //TODO: Load state from previously suspended application
+                // When the navigation stack isn't restored navigate to the first page,
+                // configuring the new page by passing required information as a navigation
+                // parameter
+                if (!rootFrame.Navigate(typeof(MainPage), e.Arguments))
+                {
+                    throw new Exception("Failed to create initial page");
+                }
             }
-
-            // Create a Frame to act navigation context and navigate to the first page
-            var rootFrame = new Frame();
-            if (!rootFrame.Navigate(typeof(MainPage)))
-            {
-                throw new Exception("Failed to create initial page");
-            }
-
-            // Place the frame in the current Window and ensure that it is active
-            Window.Current.Content = rootFrame;
+            // Ensure the current window is active
             Window.Current.Activate();
         }
 
