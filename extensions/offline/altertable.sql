@@ -11,9 +11,9 @@ ADD
 
 GO
 CREATE NONCLUSTERED INDEX [IX_guid]
-    ON [<SCHEMA-NAME>].[Test]([guid] ASC);
+    ON [<SCHEMA-NAME>].[<TABLE-NAME>]([guid] ASC);
 
 
 GO
 CREATE NONCLUSTERED INDEX [IX_timestamp]
-    ON [<SCHEMA-NAME>].[Test]([timestamp] ASC);
+    ON [<SCHEMA-NAME>].[<TABLE-NAME>]([timestamp] ASC);
