@@ -26,8 +26,16 @@ function del(id, user, request) {
                         response.deleted = [];
                     }
                     request.respond(statusCodes.OK, response);
+                },
+                error: function (err) {
+                    console.error("Error occurred. Details:", err);
+                    request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
                 }
             });  
+        },
+        error: function (err) {
+            console.error("Error occurred. Details:", err);
+            request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
         }
     });    
 }

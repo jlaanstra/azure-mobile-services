@@ -55,8 +55,17 @@ function read(query, user, request) {
                     response.results = nondeleted;
                     response.deleted = deleted;
                     request.respond(200,response);
+                },
+                error: function(err)
+                {
+                    console.error("Error occurred. Details:", err);
+                    request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
                 }
             });
+        },
+        error: function (err) {
+            console.error("Error occurred. Details:", err);
+            request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
         }
     });
 }
