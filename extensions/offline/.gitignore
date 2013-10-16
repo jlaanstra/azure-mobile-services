@@ -17,4 +17,8 @@ build/
 packages/*
 Constants.cs
 
+ipch/*
+*.opensdf
+*.sdf
+
 
