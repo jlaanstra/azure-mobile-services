@@ -1,0 +1,60 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.20827.3
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SQLiteWinRT", "SQLiteWinRT\SQLiteWinRT.vcxproj", "{A3F709AF-9A59-4F2A-B220-0074B098CCB5}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SQLiteWinRTPhone", "SQLiteWinRTPhone\SQLiteWinRTPhone.vcxproj", "{4AE0193F-5986-404E-87B6-1EC9301D16D8}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SQLiteWinRT", "SQLiteWinRT81\SQLiteWinRT81.vcxproj", "{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM = Debug|ARM
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|ARM = Release|ARM
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Debug|ARM.ActiveCfg = Debug|ARM
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Debug|ARM.Build.0 = Debug|ARM
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Debug|Win32.Build.0 = Debug|Win32
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Debug|x64.ActiveCfg = Debug|x64
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Debug|x64.Build.0 = Debug|x64
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Release|ARM.ActiveCfg = Release|ARM
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Release|ARM.Build.0 = Release|ARM
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Release|Win32.ActiveCfg = Release|Win32
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Release|Win32.Build.0 = Release|Win32
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Release|x64.ActiveCfg = Release|x64
+		{A3F709AF-9A59-4F2A-B220-0074B098CCB5}.Release|x64.Build.0 = Release|x64
+		{4AE0193F-5986-404E-87B6-1EC9301D16D8}.Debug|ARM.ActiveCfg = Debug|ARM
+		{4AE0193F-5986-404E-87B6-1EC9301D16D8}.Debug|ARM.Build.0 = Debug|ARM
+		{4AE0193F-5986-404E-87B6-1EC9301D16D8}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4AE0193F-5986-404E-87B6-1EC9301D16D8}.Debug|Win32.Build.0 = Debug|Win32
+		{4AE0193F-5986-404E-87B6-1EC9301D16D8}.Debug|x64.ActiveCfg = Debug|Win32
+		{4AE0193F-5986-404E-87B6-1EC9301D16D8}.Release|ARM.ActiveCfg = Release|ARM
+		{4AE0193F-5986-404E-87B6-1EC9301D16D8}.Release|ARM.Build.0 = Release|ARM
+		{4AE0193F-5986-404E-87B6-1EC9301D16D8}.Release|Win32.ActiveCfg = Release|Win32
+		{4AE0193F-5986-404E-87B6-1EC9301D16D8}.Release|Win32.Build.0 = Release|Win32
+		{4AE0193F-5986-404E-87B6-1EC9301D16D8}.Release|x64.ActiveCfg = Release|Win32
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Debug|ARM.ActiveCfg = Debug|ARM
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Debug|ARM.Build.0 = Debug|ARM
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Debug|Win32.Build.0 = Debug|Win32
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Debug|x64.ActiveCfg = Debug|x64
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Debug|x64.Build.0 = Debug|x64
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Release|ARM.ActiveCfg = Release|ARM
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Release|ARM.Build.0 = Release|ARM
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Release|Win32.ActiveCfg = Release|Win32
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Release|Win32.Build.0 = Release|Win32
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Release|x64.ActiveCfg = Release|x64
+		{55FE79F7-4AFD-458C-8E9D-9F5BBC19E27F}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
