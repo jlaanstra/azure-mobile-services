@@ -24,7 +24,7 @@ function update(item, user, request) {
         return;
     }
     
-    var tableName = "todoitem";
+    var tableName = tables.current.getTableName();
     
     var sql = "SELECT * FROM " + tableName + " WHERE guid = ?";
     
@@ -60,8 +60,18 @@ function update(item, user, request) {
                     {
                         item.timestamp = ts[0].timestamp.toString('hex');
                         request.respond(statusCodes.OK, response);
+                    },
+                    error: function (err)
+                    {
+                        console.error("Error occurred. Details:", err);
+                        request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
                     }
                 });
+            },
+            error: function (err)
+            {
+                console.error("Error occurred. Details:", err);
+                request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
             }
         });        
     }
@@ -97,6 +107,11 @@ function update(item, user, request) {
             {
                 request.respond(statusCodes.BAD_REQUEST);
             }  
+        },
+        error: function (err)
+        {
+            console.error("Error occurred. Details:", err);
+            request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
         }
     });    
 

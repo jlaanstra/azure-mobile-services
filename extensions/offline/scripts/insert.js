@@ -51,8 +51,16 @@ function insert(item, user, request) {
                 {
                     result.timestamp = ts[0].timestamp.toString('hex');
                     request.respond(statusCodes.OK, response);
+                },
+                error: function (err) {
+                    console.error("Error occurred. Details:", err);
+                    request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
                 }
             });
+        },
+        error: function (err) {
+            console.error("Error occurred. Details:", err);
+            request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
         }
     });
 
