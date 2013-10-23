@@ -18,6 +18,7 @@ using GalaSoft.MvvmLight.Ioc;
 using Microsoft.Practices.ServiceLocation;
 using Microsoft.WindowsAzure.MobileServices;
 using Microsoft.WindowsAzure.MobileServices.Caching;
+using Microsoft.WindowsAzure.MobileServices.Caching.CacheProviders;
 
 namespace Todo.ViewModels
 {
@@ -38,7 +39,8 @@ namespace Todo.ViewModels
 
             SimpleIoc.Default.Register<INetworkInformation>(() => networkInfo);
 
-            SimpleIoc.Default.Register<ICacheProvider, TimestampCacheProvider>();
+            SimpleIoc.Default.Register<ICacheProvider, DisabledCacheProvider>();
+            //SimpleIoc.Default.Register<ICacheProvider, TimestampCacheProvider>();
 
             SimpleIoc.Default.Register<IStructuredStorage, SQLiteCacheStorage>();
 
@@ -53,8 +55,8 @@ namespace Todo.ViewModels
                         
             // Configure your mobile service here
             MobileServiceClient MobileService = new MobileServiceClient(
-                "https://YOURAPP.azure-mobile.net/",
-                "YOURKEY",
+                Constants.MobileServiceUrl,
+                Constants.MobileServiceKey,
                 handler
             );
 

@@ -92,6 +92,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\Constants.cs">
+      <Link>Constants.cs</Link>
+    </Compile>
     <Compile Include="..\TodoItem.Win8\Behaviors\CheckedBehavior.cs">
       <Link>Behaviors\CheckedBehavior.cs</Link>
     </Compile>
