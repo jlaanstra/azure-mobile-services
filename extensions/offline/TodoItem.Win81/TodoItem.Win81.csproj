@@ -102,6 +102,9 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\Constants.cs">
+      <Link>Constants.cs</Link>
+    </Compile>
     <Compile Include="..\TodoItem.Win8\App.xaml.cs">
       <Link>App.xaml.cs</Link>
       <DependentUpon>App.xaml</DependentUpon>
@@ -180,6 +183,10 @@
   <ItemGroup>
     <Page Include="..\TodoItem.Win8\Common\Task.xaml">
       <Link>Common\Task.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Common\StandardStyles.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
