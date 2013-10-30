@@ -38,11 +38,11 @@ namespace Todo.ViewModels
             ToggableNetworkInformation networkInfo = new ToggableNetworkInformation();
 
             SimpleIoc.Default.Register<INetworkInformation>(() => networkInfo);
+            
+            SimpleIoc.Default.Register<IStructuredStorage>(() => new SQLiteCacheStorage("cache"));
 
-            SimpleIoc.Default.Register<ICacheProvider, DisabledCacheProvider>();
-            //SimpleIoc.Default.Register<ICacheProvider, TimestampCacheProvider>();
-
-            SimpleIoc.Default.Register<IStructuredStorage, SQLiteCacheStorage>();
+            //SimpleIoc.Default.Register<ICacheProvider, DisabledCacheProvider>();
+            SimpleIoc.Default.Register<ICacheProvider, TimestampCacheProvider>();
 
             SimpleIoc.Default.Register<NetworkInformationDelegate>(() =>
             {

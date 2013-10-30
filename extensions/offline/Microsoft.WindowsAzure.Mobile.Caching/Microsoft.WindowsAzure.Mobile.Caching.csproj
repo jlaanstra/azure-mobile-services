@@ -109,6 +109,7 @@
     <Compile Include="CacheProviders\DisabledCacheProvider.cs" />
     <Compile Include="CacheProviders\MemoryCacheProvider.cs" />
     <Compile Include="CacheProviders\TimestampCacheProvider.cs" />
+    <Compile Include="Disposable.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Handler\CacheHandler.cs" />
@@ -162,7 +163,7 @@
       <HintPath>..\packages\Microsoft.Bcl.Async.1.0.16\lib\portable-net45+win8+wp8\Microsoft.Threading.Tasks.Extensions.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
-      <HintPath>..\packages\Newtonsoft.Json.5.0.7\lib\portable-net45+wp80+win8\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\packages\Newtonsoft.Json.5.0.8\lib\portable-net45+wp80+win8\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System.Net.Http">
       <HintPath>..\packages\Microsoft.Net.Http.2.2.15\lib\portable-net40+sl4+win8+wp71\System.Net.Http.dll</HintPath>

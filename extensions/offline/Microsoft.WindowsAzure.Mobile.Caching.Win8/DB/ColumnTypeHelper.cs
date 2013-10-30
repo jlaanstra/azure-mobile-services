@@ -49,6 +49,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             { typeof(bool), "NUMERIC" },
             { typeof(DateTime), "TEXT" },
             { typeof(DateTimeOffset), "TEXT" },
+            { typeof(Guid), "TEXT" },
         };
 
         /// <summary>
@@ -58,8 +59,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <returns></returns>
         public static Type GetClrTypeForColumnType(string columnType)
         {
-            string type = columnType.Substring(columnType.IndexOf('_'));
-            return Type.GetType(type);
+            int underscoreIndex = columnType.IndexOf('_');
+            string type = string.Empty;
+            if (columnType.Length > underscoreIndex)
+            {
+                type = columnType.Substring(underscoreIndex + 1);
+            }
+            //error when the type cannot be found
+            return Type.GetType(type, true);
         }
 
         /// <summary>
