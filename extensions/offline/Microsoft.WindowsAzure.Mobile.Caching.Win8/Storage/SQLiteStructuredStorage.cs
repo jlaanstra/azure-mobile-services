@@ -10,6 +10,8 @@ using SQLiteWinRT;
 using Windows.Storage;
 using System.Diagnostics.Contracts;
 
+using System.Runtime.InteropServices;
+
 namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public class SQLiteCacheStorage : IStructuredStorage
@@ -17,53 +19,73 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         private string dbFile;
         private Database db;
 
-        private List<Column> defaultColumns = new List<Column>()
+        private IDictionary<string, Column> defaultColumns = new Dictionary<string, Column>()
         {
-            new Column("id", ColumnTypeHelper.GetColumnTypeForClrType(typeof(long)), false, null, 0, true), // globally unique
-            new Column("guid", ColumnTypeHelper.GetColumnTypeForClrType(typeof(Guid)), false, null, 1, true), // server id
-            new Column("timestamp", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), false, null, 0, true), // timestamp of local item
-            new Column("status", ColumnTypeHelper.GetColumnTypeForClrType(typeof(int)), false, null, 0, true), // status: unchanged:0 inserted:1 changed:2 deleted:3
+            { "id", new Column("id", ColumnTypeHelper.GetColumnTypeForClrType(typeof(long)), false, null, 0, true) }, // server id
+            { "guid", new Column("guid", ColumnTypeHelper.GetColumnTypeForClrType(typeof(Guid)), false, null, 1, true) }, // globally unique
+            { "timestamp", new Column("timestamp", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), true, null, 0, true) }, // timestamp of local item
+            { "status", new Column("status", ColumnTypeHelper.GetColumnTypeForClrType(typeof(int)), false, null, 0, true) }, // status: unchanged:0 inserted:1 changed:2 deleted:3
         };
 
         public SQLiteCacheStorage(string name)
         {
             dbFile = string.Format("{0}.sqlite", name);
-            db = new Database(ApplicationData.Current.LocalFolder, dbFile);
         }
 
-        public async Task<IEnumerable<IDictionary<string, JToken>>> GetStoredData(string tableName, IQueryOptions query)
+        public async Task<IDisposable> OpenAsync()
+        {
+            db = new Database(ApplicationData.Current.LocalFolder, dbFile);
+
+            Debug.WriteLine("Opening database: {0}", this.dbFile);
+            await db.OpenAsync(SqliteOpenMode.OpenOrCreateReadWrite);
+
+            return new Disposable(() =>
+            {
+                if (db != null)
+                {
+                    db.Dispose();
+                    db = null;
+                }
+            });
+        }
+
+        public async Task<JArray> GetStoredData(string tableName, IQueryOptions query)
         {
             Debug.WriteLine("Retrieving data for table {0}, query: {1}", tableName, query.ToString());
 
-            Debug.WriteLine("Opening database: {0}", this.dbFile);
-            //let errors bubble up, nothing we can do here
-            await db.OpenAsync(SqliteOpenMode.OpenOrCreateReadWrite);
-
-            //check if database exists
-            if(!await db.DoesTableExistAsync(tableName))
+            try
             {
-                Debug.WriteLine("Table doesn't exist: {0}", tableName);
-                return new Dictionary<string, JToken>[0];
+                //check if database exists
+                if (!await db.DoesTableExistAsync(tableName))
+                {
+                    Debug.WriteLine("Table doesn't exist: {0}", tableName);
+                    return new JArray();
+                }
+
+                Debug.WriteLine("Table exists: {0}", tableName);
+                Debug.WriteLine("Querying table structure for table: {0}", tableName);
+
+                IDictionary<string, Column> columns = await db.GetColumnsForTableAsync(tableName);
+
+                Debug.WriteLine("Table {0} has columns: {1}", tableName, string.Join<Column>("\n", columns.Values));
+
+                SQLiteExpressionVisitor visitor = new SQLiteExpressionVisitor();
+                visitor.VisitQueryOptions(query);
+
+                var sqlStatement = string.Format(visitor.SqlStatement, tableName);
+
+                Debug.WriteLine("Executing sql: {0}", sqlStatement);
+
+                return await db.QueryAsync(sqlStatement, columns);
             }
-
-            Debug.WriteLine("Table exists: {0}", tableName);
-            Debug.WriteLine("Querying table structure for table: {0}", tableName);
-
-            IList<Column> columns = await db.GetColumnsForTableAsync(tableName);
-
-            Debug.WriteLine("Table {0} has columns: {1}", tableName, string.Join<Column>("\n", columns));
-
-            SQLiteExpressionVisitor visitor = new SQLiteExpressionVisitor();
-            visitor.VisitQueryOptions(query);
-
-            var sqlStatement = string.Format(visitor.SqlStatement, tableName);
-
-            Debug.WriteLine("Executing sql: {0}", sqlStatement);
-
-            return await db.QueryAsync(sqlStatement, columns);
+            catch (Exception ex)
+            {
+                var result = Database.GetSqliteErrorCode(ex.HResult);
+                throw new Exception(string.Format("Error occurred during interaction with the local database: ", result));
+            }
         }
 
-        public async Task StoreData(string tableName, IEnumerable<IDictionary<string, JToken>> data)
+        public async Task StoreData(string tableName, JArray data)
         {
             Debug.WriteLine("Storing data for table {0}", tableName);
 
@@ -72,116 +94,55 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 return;
             }
 
-            Debug.WriteLine("Opening database: {0}", this.dbFile);
-            //let errors bubble up, nothing we can do here
-            await db.OpenAsync(SqliteOpenMode.OpenOrCreateReadWrite);
-            
-            IList<Column> columns = this.GetColumnsFromItem(data.FirstOrDefault());
-
-            //check if database exists
-            if (!await db.DoesTableExistAsync(tableName))
+            try
             {
-                Debug.WriteLine("Table doesn't exist: {0}", tableName);
+                // the actual columns for the item
+                IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);
 
-                await db.CreateTableAsync(tableName, columns);
+                await this.EnsureSchemaForTable(tableName, db, columns);
 
-                Debug.WriteLine("Table {0} created with columns {1}.", tableName, string.Join<Column>("\n", columns));
-                Debug.WriteLine("Creating index for table {0} on column 'id'", tableName);
+                Debug.WriteLine("Inserting...");
 
-                await db.CreateIndexAsync(tableName, "id");
-            }
-            else
-            {
-                Debug.WriteLine("Table exists: {0}", tableName);
-                Debug.WriteLine("Querying table structure for table: {0}", tableName);
-
-                IList<Column> tableColumns = await db.GetColumnsForTableAsync(tableName);
-
-                Debug.WriteLine("Table {0} has columns: {1}", tableName, string.Join<Column>("\n", tableColumns));
-
-                IList<Column> newColumns = this.DetermineNewColumns(tableColumns, columns);
-                foreach(var col in newColumns)
+                foreach (JObject item in data)
                 {
-                    await db.AddColumnForTableAsync(tableName, col);
+                    await db.InsertIntoTableAsync(tableName, columns, item);
                 }
             }
-
-            StringBuilder sql = new StringBuilder();
-            sql.Append("INSERT OR REPLACE INTO ");
-            sql.Append(tableName);
-            sql.Append(string.Format(" ('{0}')", string.Join("','", mapping.Columns.Select(c => c.Name))));
-            sql.Append(" VALUES ");
-            foreach (var item in data)
+            catch (Exception ex)
             {
-                sql.Append("('");
-                foreach (var col in mapping.Columns)
-                {
-                    JValue val = item[col.Name] as JValue;
-                    if (val == null)
-                    {
-                        sql.Append("NULL");
-                    }
-                    else
-                    {
-                        sql.Append(col.IsPK ? val.Value.ToString().ToLowerInvariant() : val.Value);
-                    }
-                    sql.Append("','");
-                }
-                sql.Remove(sql.Length - 3, 3);
-                sql.Append("'),");
+                var result = Database.GetSqliteErrorCode(ex.HResult);
+                throw new Exception(string.Format("Error occurred during interaction with the local database: ", result));
             }
-            sql.Remove(sql.Length - 1, 1);
-
-            Debug.WriteLine("Executing sql: {0}", sql.ToString());
-
-            SQLiteCommand command = db.CreateCommand(sql.ToString(), tableName);
-            await Task.Run(() => command.ExecuteNonQuery());
         }
 
-        public async Task UpdateData(string tableName, string guid, IDictionary<string, JToken> data)
+        public async Task UpdateData(string tableName, JArray data)
         {
-            Debug.WriteLine("Update data {0} for table {1}", guid, tableName);
+            Debug.WriteLine("Update table {0}", tableName);
 
-            if (data == null)
+            if (!data.Any())
             {
                 return;
             }
 
-            // there will always be one item, since otherwise we would already have returned
-            TableMapping mapping = this.DeriveSchema(tableName, data);
-
-            await Task.Run(() => db.CreateTable(mapping));
-
-            Debug.WriteLine("Table {0}, using mapping: {1}", tableName, string.Join<TableMapping.Column>(",", mapping.Columns));
-
-            StringBuilder sql = new StringBuilder();
-            sql.Append("UPDATE ");
-            sql.Append(tableName);
-            sql.Append(" SET ");
-            foreach (var col in mapping.Columns)
+            try
             {
-                sql.Append(col.Name);
-                sql.Append(" = '");
-                JValue val = data[col.Name] as JValue;
-                if (val == null)
+                // the actual columns for the item
+                IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);
+
+                await this.EnsureSchemaForTable(tableName, db, columns);
+
+                Debug.WriteLine("Updating...");
+
+                foreach (JObject item in data)
                 {
-                    sql.Append("NULL");
+                    await db.UpdateInTableAsync(tableName, columns, item);
                 }
-                else
-                {
-                    sql.Append(col.IsPK ? val.Value.ToString().ToLowerInvariant() : val.Value);
-                }
-                sql.Append("',");
             }
-            sql.Remove(sql.Length - 1, 1);
-            sql.Append(" WHERE guid = '");
-            sql.Append(guid);
-            sql.Append("'");
-
-            Debug.WriteLine("Executing sql: {0}", sql.ToString());
-
-            SQLiteCommand command = db.CreateCommand(sql.ToString(), tableName);
-            await Task.Run(() => command.ExecuteNonQuery());
+            catch (Exception ex)
+            {
+                var result = Database.GetSqliteErrorCode(ex.HResult);
+                throw new Exception(string.Format("Error occurred during interaction with the local database: ", result));
+            }
         }
 
         public async Task RemoveStoredData(string tableName, IEnumerable<string> guids)
@@ -193,81 +154,66 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 return;
             }
 
-            StringBuilder sql = new StringBuilder();
-            sql.Append("DELETE FROM ");
-            sql.Append(tableName);
-            sql.Append(" WHERE guid IN ('");
-            foreach (string guid in guids)
+            try
             {
-                sql.Append(guid.ToLowerInvariant());
-                sql.Append("','");
+                Debug.WriteLine("Deleting...");
+
+                await db.DeleteFromTableAsync(tableName, guids);
             }
-            sql.Remove(sql.Length - 3, 3);
-            sql.Append("')");
-
-            Debug.WriteLine("Executing sql: {0}", sql.ToString());
-
-            SQLiteCommand command = db.CreateCommand(sql.ToString());
-            await Task.Run(() => command.ExecuteNonQuery());
+            catch (Exception ex)
+            {
+                var result = Database.GetSqliteErrorCode(ex.HResult);
+                throw new Exception(string.Format("Error occurred during interaction with the local database: ", result));
+            }
         }
 
-        private IList<Column> GetColumnsFromItem(IDictionary<string, JToken> item)
+        private IDictionary<string,Column> GetColumnsFromItem(IDictionary<string, JToken> item)
         {
             Contract.Requires(item != null, "item cannot be null");
 
-            List<Column> cols = new List<Column>();
-            cols.AddRange(this.defaultColumns);
+            IDictionary<string, Column> cols = new Dictionary<string, Column>(defaultColumns);
             foreach (var kvp in item.Where(prop => !(prop.Key.Equals("status") || prop.Key.Equals("id") || prop.Key.Equals("guid") || prop.Key.Equals("timestamp"))))
             {
-                cols.Add(new Column(kvp.Key, ColumnTypeHelper.GetColumnTypeForClrType(((JValue)kvp.Value).Value.GetType()), true));
+                cols.Add(kvp.Key, new Column(kvp.Key, ColumnTypeHelper.GetColumnTypeForClrType(((JValue)kvp.Value).Value.GetType()), true));
             }
 
             return cols;
         }
 
-        private IList<Column> DetermineNewColumns(IList<Column> table, IList<Column> item)
+        private IDictionary<string, Column> DetermineNewColumns(IDictionary<string, Column> table, IDictionary<string, Column> item)
         {
             //all columns in item with name that do not exist in table 
-            return item.Where(c => !table.Any(t => t.Name.Equals(c.Name))).ToList();
+            return item.Where(c => !table.ContainsKey(c.Key)).ToDictionary(x => x.Key, x => x.Value);
         }
 
-        private Type JTokenToClrType(JToken token)
+        private async Task EnsureSchemaForTable(string tableName, Database db, IDictionary<string, Column> columns)
         {
-            JValue val = token as JValue;
-            switch (val.Type)
+            //check if database exists
+            if (!await db.DoesTableExistAsync(tableName))
             {
-                case JTokenType.String:
-                    return typeof(string);
-                case JTokenType.Date:
-                    return typeof(DateTime);
-                case JTokenType.Float:
-                case JTokenType.Integer:
-                    return typeof(double);
-                case JTokenType.Boolean:
-                    return typeof(string);
-                default:
-                    Debug.WriteLine("Encountered token type {0}.", val.Type);
-                    return typeof(string);
+                Debug.WriteLine("Table doesn't exist: {0}", tableName);
+
+                await db.CreateTableAsync(tableName, columns);
+
+                Debug.WriteLine("Table {0} created with columns {1}.", tableName, string.Join<Column>("\n", columns.Values));
+                Debug.WriteLine("Creating index for table {0} on column 'id'", tableName);
+
+                await db.CreateIndexAsync(tableName, "id");
             }
-        }
-
-        private Type StringToClrType(string typeString)
-        {
-            switch (typeString)
+            else
             {
-                case "datetime":
-                    return typeof(DateTime);
-                case "float":
-                    return typeof(double);
-                case "integer":
-                    return typeof(int);
-                case "bigint":
-                    return typeof(long);
-                case "blob":
-                    return typeof(byte[]);
-                default:
-                    Debug.WriteLine("Encountered type string {0}.", typeString);
-                    return typeof(string);
+                Debug.WriteLine("Table exists: {0}", tableName);
+                Debug.WriteLine("Querying table structure for table: {0}", tableName);
+
+                IDictionary<string, Column> tableColumns = await db.GetColumnsForTableAsync(tableName);
+
+                Debug.WriteLine("Table {0} has columns: {1}", tableName, string.Join<Column>("\n", tableColumns.Values));
+
+                IDictionary<string, Column> newColumns = this.DetermineNewColumns(tableColumns, columns);
+                foreach (var col in newColumns)
+                {
+                    await db.AddColumnForTableAsync(tableName, col.Value);
+                }
             }
         }
     }

@@ -28,3 +28,6 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: InternalsVisibleTo("Microsoft.WindowsAzure.Mobile.Caching.Win8")]
+[assembly: InternalsVisibleTo("Microsoft.WindowsAzure.Mobile.Caching.Win81")]
+[assembly: InternalsVisibleTo("Microsoft.WindowsAzure.Mobile.Caching.WP8")]

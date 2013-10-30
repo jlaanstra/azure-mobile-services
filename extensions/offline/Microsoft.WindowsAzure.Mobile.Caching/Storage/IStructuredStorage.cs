@@ -9,11 +9,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public interface IStructuredStorage
     {
-        Task<IEnumerable<IDictionary<string, JToken>>> GetStoredData(string tableName, IQueryOptions query);
+        Task<IDisposable> OpenAsync();
 
-        Task StoreData(string tableName, IEnumerable<IDictionary<string, JToken>> data);
+        Task<JArray> GetStoredData(string tableName, IQueryOptions query);
 
-        Task UpdateData(string tableName, string guid, IDictionary<string, JToken> data);
+        Task StoreData(string tableName, JArray data);
+
+        Task UpdateData(string tableName, JArray data);
 
         Task RemoveStoredData(string tableName, IEnumerable<string> guids);
     }

@@ -154,7 +154,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Type type = expr.Value.GetType();
             if (type == typeof(bool))
             {
-                this.sqlBuilder.Append((bool)expr.Value ? "'True'" : "'False'");
+                this.sqlBuilder.Append((bool)expr.Value ? 1 : 0);
             }
             else if (type == typeof(long) || type == typeof(int) || type == typeof(short) || type == typeof(sbyte)
                 || type == typeof(ulong) || type == typeof(uint) || type == typeof(ushort) || type == typeof(double)
