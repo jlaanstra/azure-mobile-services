@@ -285,6 +285,21 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 while (await stm.StepAsync()) ;
             }
         }
+
+        public static Task BeginTransaction(this Database This)
+        {
+            return This.ExecuteStatementAsync("BEGIN TRANSACTION").AsTask();
+        }
+
+        public static Task CommitTransaction(this Database This)
+        {
+            return This.ExecuteStatementAsync("COMMIT TRANSACTION").AsTask();
+        }
+
+        public static Task RollbackTransaction(this Database This)
+        {
+            return This.ExecuteStatementAsync("ROLLBACK TRANSACTION").AsTask();
+        }
     }
 
     public class Column

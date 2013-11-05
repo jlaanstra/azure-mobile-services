@@ -49,6 +49,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             });
         }
 
+        /// <summary>
+        /// Gets the stored data.
+        /// This method should not alter the database in any way.
+        /// </summary>
+        /// <param name="tableName">Name of the table.</param>
+        /// <param name="query">The query.</param>
+        /// <returns></returns>
+        /// <exception cref="System.Exception"></exception>
         public async Task<JArray> GetStoredData(string tableName, IQueryOptions query)
         {
             Debug.WriteLine("Retrieving data for table {0}, query: {1}", tableName, query.ToString());
@@ -56,7 +64,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             try
             {
                 //check if database exists
-                if (!await db.DoesTableExistAsync(tableName))
+                if (!await db.DoesTableExistAsync(tableName).ConfigureAwait(false))
                 {
                     Debug.WriteLine("Table doesn't exist: {0}", tableName);
                     return new JArray();
@@ -76,7 +84,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                 Debug.WriteLine("Executing sql: {0}", sqlStatement);
 
-                return await db.QueryAsync(sqlStatement, columns);
+                return await db.QueryAsync(sqlStatement, columns).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -94,24 +102,38 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 return;
             }
 
+            Exception exception = null;
+            // start transaction
+            await db.BeginTransaction().ConfigureAwait(false);
             try
             {
                 // the actual columns for the item
                 IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);
 
-                await this.EnsureSchemaForTable(tableName, db, columns);
+                await this.EnsureSchemaForTable(tableName, db, columns).ConfigureAwait(false);
 
                 Debug.WriteLine("Inserting...");
 
                 foreach (JObject item in data)
                 {
-                    await db.InsertIntoTableAsync(tableName, columns, item);
+                    await db.InsertIntoTableAsync(tableName, columns, item).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
-                var result = Database.GetSqliteErrorCode(ex.HResult);
-                throw new Exception(string.Format("Error occurred during interaction with the local database: ", result));
+                exception = ex;
+            }
+
+            // rollback if exception
+            if (exception != null)
+            {
+                var result = Database.GetSqliteErrorCode(exception.HResult);
+                await db.RollbackTransaction().ConfigureAwait(false);
+                throw new Exception(string.Format("Error occurred during interaction with the local database: ", exception));
+            }
+            else
+            {
+                await db.CommitTransaction().ConfigureAwait(false);
             }
         }
 
@@ -124,24 +146,37 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 return;
             }
 
+            Exception exception = null;
+            await db.BeginTransaction();
             try
             {
                 // the actual columns for the item
                 IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);
 
-                await this.EnsureSchemaForTable(tableName, db, columns);
+                await this.EnsureSchemaForTable(tableName, db, columns).ConfigureAwait(false);
 
                 Debug.WriteLine("Updating...");
 
                 foreach (JObject item in data)
                 {
-                    await db.UpdateInTableAsync(tableName, columns, item);
+                    await db.UpdateInTableAsync(tableName, columns, item).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
-                var result = Database.GetSqliteErrorCode(ex.HResult);
-                throw new Exception(string.Format("Error occurred during interaction with the local database: ", result));
+                exception = ex;
+            }
+
+            // rollback if exception
+            if (exception != null)
+            {
+                var result = Database.GetSqliteErrorCode(exception.HResult);
+                await db.RollbackTransaction().ConfigureAwait(false);
+                throw new Exception(string.Format("Error occurred during interaction with the local database: ", exception));
+            }
+            else
+            {
+                await db.CommitTransaction().ConfigureAwait(false);
             }
         }
 
@@ -154,16 +189,29 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 return;
             }
 
+            Exception exception = null;
+            await db.BeginTransaction().ConfigureAwait(false);
             try
             {
                 Debug.WriteLine("Deleting...");
 
-                await db.DeleteFromTableAsync(tableName, guids);
+                await db.DeleteFromTableAsync(tableName, guids).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                var result = Database.GetSqliteErrorCode(ex.HResult);
-                throw new Exception(string.Format("Error occurred during interaction with the local database: ", result));
+                exception = ex;
+            }
+
+            // rollback if exception
+            if (exception != null)
+            {
+                var result = Database.GetSqliteErrorCode(exception.HResult);
+                await db.RollbackTransaction().ConfigureAwait(false);
+                throw new Exception(string.Format("Error occurred during interaction with the local database: ", exception));
+            }
+            else
+            {
+                await db.CommitTransaction().ConfigureAwait(false);
             }
         }
 
@@ -189,30 +237,30 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         private async Task EnsureSchemaForTable(string tableName, Database db, IDictionary<string, Column> columns)
         {
             //check if database exists
-            if (!await db.DoesTableExistAsync(tableName))
+            if (!await db.DoesTableExistAsync(tableName).ConfigureAwait(false))
             {
                 Debug.WriteLine("Table doesn't exist: {0}", tableName);
 
-                await db.CreateTableAsync(tableName, columns);
+                await db.CreateTableAsync(tableName, columns).ConfigureAwait(false);
 
                 Debug.WriteLine("Table {0} created with columns {1}.", tableName, string.Join<Column>("\n", columns.Values));
                 Debug.WriteLine("Creating index for table {0} on column 'id'", tableName);
 
-                await db.CreateIndexAsync(tableName, "id");
+                await db.CreateIndexAsync(tableName, "id").ConfigureAwait(false);
             }
             else
             {
                 Debug.WriteLine("Table exists: {0}", tableName);
                 Debug.WriteLine("Querying table structure for table: {0}", tableName);
 
-                IDictionary<string, Column> tableColumns = await db.GetColumnsForTableAsync(tableName);
+                IDictionary<string, Column> tableColumns = await db.GetColumnsForTableAsync(tableName).ConfigureAwait(false);
 
                 Debug.WriteLine("Table {0} has columns: {1}", tableName, string.Join<Column>("\n", tableColumns.Values));
 
                 IDictionary<string, Column> newColumns = this.DetermineNewColumns(tableColumns, columns);
                 foreach (var col in newColumns)
                 {
-                    await db.AddColumnForTableAsync(tableName, col.Value);
+                    await db.AddColumnForTableAsync(tableName, col.Value).ConfigureAwait(false);
                 }
             }
         }
