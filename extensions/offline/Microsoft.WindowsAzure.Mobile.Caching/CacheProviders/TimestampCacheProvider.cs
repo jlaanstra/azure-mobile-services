@@ -492,6 +492,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string tableName = this.GetTableNameFromUri(tableUri);
 
+            // all communication with the database should be on the same thread
             using (await this.storage.OpenAsync())
             {
                 //sent all local changes 

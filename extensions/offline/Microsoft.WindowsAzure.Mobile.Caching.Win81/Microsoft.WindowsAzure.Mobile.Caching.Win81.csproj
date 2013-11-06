@@ -105,14 +105,11 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\Microsoft.WindowsAzure.Mobile.Caching.Win8\DB\SQLite.cs">
-      <Link>DB\SQLite.cs</Link>
+    <Compile Include="..\Microsoft.WindowsAzure.Mobile.Caching.Win8\DB\ColumnTypeHelper.cs">
+      <Link>DB\ColumnTypeHelper.cs</Link>
     </Compile>
-    <Compile Include="..\Microsoft.WindowsAzure.Mobile.Caching.Win8\DB\SQLite.Extensions.cs">
-      <Link>DB\SQLite.Extensions.cs</Link>
-    </Compile>
-    <Compile Include="..\Microsoft.WindowsAzure.Mobile.Caching.Win8\DB\SQLiteAsync.cs">
-      <Link>DB\SQLiteAsync.cs</Link>
+    <Compile Include="..\Microsoft.WindowsAzure.Mobile.Caching.Win8\DB\DatabaseExtensions.cs">
+      <Link>DB\DatabaseExtensions.cs</Link>
     </Compile>
     <Compile Include="..\Microsoft.WindowsAzure.Mobile.Caching.Win8\Expressions\SQLiteExpressionVisitor.cs">
       <Link>Expressions\SQLiteExpressionVisitor.cs</Link>
@@ -129,6 +126,10 @@
     <ProjectReference Include="..\Microsoft.WindowsAzure.Mobile.Caching\Microsoft.WindowsAzure.Mobile.Caching.csproj">
       <Project>{77105497-068b-4a01-b9d2-abd33f2d2b79}</Project>
       <Name>Microsoft.WindowsAzure.Mobile.Caching</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\sqlwinrt_49f8079f900d\SQLiteWinRT81\SQLiteWinRT81.vcxproj">
+      <Project>{55fe79f7-4afd-458c-8e9d-9f5bbc19e27f}</Project>
+      <Name>SQLiteWinRT</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

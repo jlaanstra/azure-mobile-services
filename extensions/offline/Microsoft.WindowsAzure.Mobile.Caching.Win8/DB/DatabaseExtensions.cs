@@ -171,7 +171,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     //make sure string are inserted lowercase
                     if (value != null)
                     {
-                        if (c.IsBuiltin && c.GetClrDataType() == typeof(string))
+                        if (c.IsBuiltin && c.GetClrDataType() == typeof(Guid))
                         {
                             value = new JValue(value.ToString().ToLowerInvariant());
                         }
@@ -190,7 +190,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     j++;
                 }
 
-                while (await stm.StepAsync()) ;
+                await stm.StepAsync();
             }
         }
 
@@ -247,7 +247,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     j++;
                 }
 
-                while (await stm.StepAsync()) ;
+                await stm.StepAsync();
             }
         }
 
@@ -282,23 +282,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     stm.BindTextParameterAt(i + 1, e.Current);
                 }
 
-                while (await stm.StepAsync()) ;
+                await stm.StepAsync();
             }
-        }
-
-        public static Task BeginTransaction(this Database This)
-        {
-            return This.ExecuteStatementAsync("BEGIN TRANSACTION").AsTask();
-        }
-
-        public static Task CommitTransaction(this Database This)
-        {
-            return This.ExecuteStatementAsync("COMMIT TRANSACTION").AsTask();
-        }
-
-        public static Task RollbackTransaction(this Database This)
-        {
-            return This.ExecuteStatementAsync("ROLLBACK TRANSACTION").AsTask();
         }
     }
 
