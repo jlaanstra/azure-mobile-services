@@ -35,6 +35,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             HttpResponseMessage response = null;
             HttpContent newContent = null;
 
+            CancellationTokenSource cts = new CancellationTokenSource();
+
             //closure capturing the actual base SendAsync
             OptionalFunc<Uri, HttpContent, HttpMethod, Task<HttpContent>> sendAsync = async (uri, content, method) =>
             {
@@ -58,7 +60,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     req.Properties.Add(property.Key, property.Value);
                 }
 
-                response = await base.SendAsync(req, cancellationToken);
+                //we use our own cancellation, because sync should never be cancelled
+                response = await base.SendAsync(req, cts.Token);
                 // Throw errors for any failing responses
                 if (!response.IsSuccessStatusCode)
                 {
@@ -98,6 +101,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                         break;
                 }
             }
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (response == null)
             {
