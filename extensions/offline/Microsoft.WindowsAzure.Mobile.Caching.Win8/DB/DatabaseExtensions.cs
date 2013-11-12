@@ -163,32 +163,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             using (Statement stm = await This.PrepareStatementAsync(sqlStatement))
             {
-                int j = 1;
-                foreach (var prop in data)
-                {
-                    Column c = columns[prop.Key];
-                    JToken value = prop.Value;
-                    //make sure string are inserted lowercase
-                    if (value != null)
-                    {
-                        if (c.IsBuiltin && c.GetClrDataType() == typeof(Guid))
-                        {
-                            value = new JValue(value.ToString().ToLowerInvariant());
-                        }
-
-                        Action<Statement, int, JValue> bind;
-                        if (!bindToValue.TryGetValue(c.GetClrDataType(), out bind))
-                        {
-                            throw new InvalidOperationException("Type is unknown for a mapping to a sqlite type.");
-                        }
-                        bind(stm, j, (JValue)value);
-                    }
-                    else
-                    {
-                        stm.BindNullParameterAt(j);
-                    }
-                    j++;
-                }
+                stm.BindDataToStatement(columns, data);
 
                 await stm.StepAsync();
             }
@@ -219,35 +194,40 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             using (Statement stm = await This.PrepareStatementAsync(sqlStatement))
             {
-                int j = 1;
-                foreach (var prop in data)
-                {
-                    Column c = columns[prop.Key];
-                    JToken value = prop.Value;
-
-                    if (value != null)
-                    {
-                        //make sure string are inserted lowercase
-                        if (c.IsBuiltin && c.GetClrDataType() == typeof(string))
-                        {
-                            value = new JValue(value.ToString().ToLowerInvariant());
-                        }
-
-                        Action<Statement, int, JValue> bind;
-                        if (!bindToValue.TryGetValue(c.GetClrDataType(), out bind))
-                        {
-                            throw new InvalidOperationException("Type is unknown for a mapping to a sqlite type.");
-                        }
-                        bind(stm, j, (JValue)value);
-                    }
-                    else
-                    {
-                        stm.BindNullParameterAt(j);
-                    }
-                    j++;
-                }
+                stm.BindDataToStatement(columns, data);
 
                 await stm.StepAsync();
+            }
+        }
+
+        private static void BindDataToStatement(this Statement This, IDictionary<string, Column> columns, IDictionary<string, JToken> data)
+        {
+            int j = 1;
+            foreach (var prop in data)
+            {
+                Column c = columns[prop.Key];
+                JToken value = prop.Value;
+
+                if (value != null)
+                {
+                    //make sure string are inserted lowercase
+                    if (c.IsBuiltin && c.GetClrDataType() == typeof(Guid))
+                    {
+                        value = new JValue(value.ToString().ToLowerInvariant());
+                    }
+
+                    Action<Statement, int, JValue> bind;
+                    if (!bindToValue.TryGetValue(c.GetClrDataType(), out bind))
+                    {
+                        throw new InvalidOperationException("Type is unknown for a mapping to a sqlite type.");
+                    }
+                    bind(This, j, (JValue)value);
+                }
+                else
+                {
+                    This.BindNullParameterAt(j);
+                }
+                j++;
             }
         }
 
