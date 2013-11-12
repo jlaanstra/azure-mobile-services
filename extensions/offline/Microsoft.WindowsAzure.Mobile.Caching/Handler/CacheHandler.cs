@@ -66,7 +66,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 if (!response.IsSuccessStatusCode)
                 {
                     string error = await response.Content.ReadAsStringAsync();
-                    throw new Exception();
+                    throw new HttpStatusCodeException(response.StatusCode,error);
                 }
 
                 HttpContent responseContent = response.Content;

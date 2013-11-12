@@ -11,6 +11,7 @@ using Microsoft.WindowsAzure.MobileServices.Caching.CacheProviders;
 using System.Diagnostics.Contracts;
 using System.Collections;
 using System.Diagnostics;
+using System.Net;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
@@ -500,6 +501,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 foreach (JObject item in localChanges)
                 {
                     JToken status;
+                    HttpStatusCode code = HttpStatusCode.OK;
                     if (item.TryGetValue("status", out status))
                     {
                         ItemStatus itemStatus = (ItemStatus)(int)status;
@@ -512,20 +514,47 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                                 item.Remove("id");
                                 //remove any defined timestamp properties
                                 item.Remove("timestamp");
-                                await getResponse(tableUri, new StringContent(JsonConvert.SerializeObject(item), Encoding.UTF8, "application/json"), HttpMethod.Post);
+
+                                try
+                                {
+                                    await getResponse(tableUri, new StringContent(JsonConvert.SerializeObject(item), Encoding.UTF8, "application/json"), HttpMethod.Post);
+                                }
+                                catch(HttpStatusCodeException ex)
+                                {
+                                    code = ex.StatusCode;
+                                }
+                                //item already exists on the server
+                                if(code == HttpStatusCode.Conflict)
+                                {
+                                    await this.storage.RemoveStoredData(tableName, new[] { item["guid"].ToString().ToLowerInvariant() });
+                                }
                                 break;
                             case ItemStatus.Changed:
                                 JToken id;
                                 if (item.TryGetValue("id", out id))
                                 {
-                                    await getResponse(new Uri(tableUri.OriginalString + "/" + id.ToString()), new StringContent(JsonConvert.SerializeObject(item), Encoding.UTF8, "application/json"), new HttpMethod("PATCH"));
+                                    try
+                                    {
+                                        await getResponse(new Uri(tableUri.OriginalString + "/" + id.ToString()), new StringContent(JsonConvert.SerializeObject(item), Encoding.UTF8, "application/json"), new HttpMethod("PATCH"));
+                                    }
+                                    catch (HttpStatusCodeException ex)
+                                    {
+                                        code = ex.StatusCode;
+                                    }
                                 }
                                 break;
                             case ItemStatus.Deleted:
                                 JToken id2;
                                 if (item.TryGetValue("id", out id2))
                                 {
-                                    await getResponse(new Uri(tableUri.OriginalString + "/" + id2.ToString()), null, HttpMethod.Delete);
+                                    try
+                                    {
+                                        await getResponse(new Uri(tableUri.OriginalString + "/" + id2.ToString()), null, HttpMethod.Delete);
+                                    }
+                                    catch (HttpStatusCodeException ex)
+                                    {
+                                        code = ex.StatusCode;
+                                    }
                                 }
                                 break;
                         };
