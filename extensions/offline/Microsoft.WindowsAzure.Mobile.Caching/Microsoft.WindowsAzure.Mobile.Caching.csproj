@@ -110,6 +110,7 @@
     <Compile Include="CacheProviders\MemoryCacheProvider.cs" />
     <Compile Include="CacheProviders\TimestampCacheProvider.cs" />
     <Compile Include="Disposable.cs" />
+    <Compile Include="Exceptions\HttpStatusCodeException.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Handler\CacheHandler.cs" />

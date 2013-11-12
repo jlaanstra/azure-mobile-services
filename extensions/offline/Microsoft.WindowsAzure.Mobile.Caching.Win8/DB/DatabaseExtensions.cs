@@ -259,7 +259,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 for (int i = 0; i < count; i++)
                 {
                     e.MoveNext();
-                    stm.BindTextParameterAt(i + 1, e.Current);
+                    stm.BindTextParameterAt(i + 1, e.Current.ToLowerInvariant());
                 }
 
                 await stm.StepAsync();
