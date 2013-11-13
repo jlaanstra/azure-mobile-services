@@ -74,6 +74,8 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="CacheProviders\DisabledCacheProviderTest.cs" />
+    <Compile Include="CacheProviders\MemoryCacheProviderTest.cs" />
     <Compile Include="OData\Parser\ODataFilterParserTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
