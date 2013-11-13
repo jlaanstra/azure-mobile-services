@@ -20,17 +20,19 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         private readonly INetworkInformation network;
         private readonly IStructuredStorage storage;
-        
-        public TimestampCacheProvider(IStructuredStorage storage, INetworkInformation network)
+        private readonly Func<Uri, bool> areWeCachingThis;
+
+        public TimestampCacheProvider(IStructuredStorage storage, INetworkInformation network, Func<Uri, bool> areWeCachingThis = null)
         {
             Contract.Requires<ArgumentNullException>(storage != null, "storage");
             Contract.Requires<ArgumentNullException>(network != null, "network");
 
             this.network = network;
             this.storage = storage;
+            this.areWeCachingThis = areWeCachingThis ?? (u => true);
         }
 
-        public override async Task<HttpContent> Read(Uri requestUri, OptionalFunc<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Read(Uri requestUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
@@ -44,7 +46,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             if (await network.IsConnectedToInternet())
             {
                 await this.Synchronize(requestUri, getResponse);
-                
+
                 //make sure the timestamps are loaded
                 await this.EnsureTimestampsLoaded();
 
@@ -61,7 +63,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 }
 
                 //send the timestamped request
-                HttpContent remoteResults = await getResponse(stampedRequestUri);
+                HttpContent remoteResults = await base.Read(stampedRequestUri, getResponse);
                 string rawContent = await remoteResults.ReadAsStringAsync();
                 json = JObject.Parse(rawContent);
                 ResponseValidator.EnsureValidReadResponse(json);
@@ -76,7 +78,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 }
             }
 
-            using(await this.storage.OpenAsync())
+            using (await this.storage.OpenAsync())
             {
                 JToken newtimestamp;
                 if (json.TryGetValue("timestamp", out newtimestamp))
@@ -88,7 +90,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 if (json.TryGetValue("results", out results) && results is JArray)
                 {
                     JArray dataForInsertion = (JArray)results;
-                    foreach(JObject item in dataForInsertion)
+                    foreach (JObject item in dataForInsertion)
                     {
                         item["status"] = (int)ItemStatus.Unchanged;
                     }
@@ -146,7 +148,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <param name="getResponse">The get response.</param>
         /// <returns></returns>
         /// <exception cref="System.InvalidOperationException">Invalid response.</exception>
-        public override async Task<HttpContent> Insert(Uri requestUri, HttpContent content, OptionalFunc<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Insert(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(content != null, "content");
@@ -224,12 +226,12 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// or
         /// Invalid response.
         /// </exception>
-        public override async Task<HttpContent> Update(Uri requestUri, HttpContent content, OptionalFunc<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Update(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(content != null, "content");
             Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
-            
+
             //Ensure guid
             string guidString = requestUri.GetQueryNameValuePairs().Where(kvp => kvp.Key.Equals("guid"))
                     .Select(kvp => kvp.Value)
@@ -240,7 +242,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
 
             string tableName = this.GetTableNameFromUri(requestUri);
-            
+
             HttpContent response;
             JArray dataForInsertion;
 
@@ -255,17 +257,17 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 ResponseValidator.EnsureValidUpdateResponse(json);
                 Debug.WriteLine("{0} returned:    {1}", requestUri, json);
                 JToken results;
-                if(json.TryGetValue("results", out results) && results is JArray)
+                if (json.TryGetValue("results", out results) && results is JArray)
                 {
                     // result should be an array of objects, mostly a single one
                     // insert them as unchanged items.
                     dataForInsertion = (JArray)results;
-                    foreach(JObject item in dataForInsertion)
+                    foreach (JObject item in dataForInsertion)
                     {
                         item["status"] = (int)ItemStatus.Unchanged;
                     }
                 }
-                else        
+                else
                 {
                     dataForInsertion = new JArray();
                 }
@@ -273,7 +275,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             else
             {
                 hasLocalChanges = true;
-                
+
                 string rawContent = await content.ReadAsStringAsync();
                 response = new StringContent(rawContent);
                 JObject result = JObject.Parse(rawContent);
@@ -300,9 +302,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Debug.WriteLine("Returning response:    {0}", returnResult.ToString());
 
             return new StringContent(returnResult.ToString());
-       }
+        }
 
-        public override async Task<HttpContent> Delete(Uri requestUri, OptionalFunc<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Delete(Uri requestUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
@@ -342,12 +344,12 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             else
             {
                 hasLocalChanges = true;
-                               
+
                 //if local item (-1) not known by server
                 // we can just remove it locally and the server will never know about its existence
                 if (requestUri.AbsolutePath.Contains("/-1"))
                 {
-                   guidsToRemove = new[] { guidString };
+                    guidsToRemove = new[] { guidString };
                 }
                 else
                 {
@@ -360,7 +362,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 await this.storage.RemoveStoredData(tableName, guidsToRemove);
 
                 JArray arr = new JArray();
-                foreach(var guid in guidsToRemove)
+                foreach (var guid in guidsToRemove)
                 {
                     arr.Add(new JObject() { { "guid", new JValue(guid) }, { "status", new JValue((int)ItemStatus.Deleted) } });
                 }
@@ -371,7 +373,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Debug.WriteLine("Returning response:    {0}", string.Empty);
 
             return new StringContent(string.Empty);
-        }       
+        }
 
         private string GetTableNameFromUri(Uri requestUri)
         {
@@ -386,7 +388,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 endIndex = path.Length;
             }
             return path.Substring(startIndex, endIndex - startIndex);
-        }        
+        }
 
         /// <summary>
         /// 
@@ -395,7 +397,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <returns></returns>
         public override bool ProvidesCacheForRequest(Uri requestUri)
         {
-            return requestUri.OriginalString.Contains("/tables/");
+            return requestUri.OriginalString.Contains("/tables/") && areWeCachingThis(requestUri);
         }
 
         #region Timestamps
@@ -480,13 +482,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// </summary>
         private bool hasLocalChanges = true;
 
-        private async Task Synchronize(Uri tableUri, OptionalFunc<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        private async Task Synchronize(Uri tableUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
         {
             Contract.Requires<ArgumentNullException>(tableUri != null, "tableUri");
             Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
 
             //return is there is nothing to sync
-            if(!hasLocalChanges)
+            if (!hasLocalChanges)
             {
                 return;
             }
@@ -519,12 +521,12 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                                 {
                                     await getResponse(tableUri, new StringContent(JsonConvert.SerializeObject(item), Encoding.UTF8, "application/json"), HttpMethod.Post);
                                 }
-                                catch(HttpStatusCodeException ex)
+                                catch (HttpStatusCodeException ex)
                                 {
                                     code = ex.StatusCode;
                                 }
                                 //item already exists on the server
-                                if(code == HttpStatusCode.Conflict)
+                                if (code == HttpStatusCode.Conflict)
                                 {
                                     await this.storage.RemoveStoredData(tableName, new[] { item["guid"].ToString().ToLowerInvariant() });
                                 }
@@ -564,7 +566,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     this.hasLocalChanges = false;
                 }
             }
-      }
+        }
 
         #endregion
     }

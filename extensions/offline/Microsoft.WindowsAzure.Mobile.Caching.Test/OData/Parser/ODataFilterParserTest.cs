@@ -461,24 +461,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         }
 
         [TestMethod]
-        public void IntersectsMethodCallExpressionTest()
-        {
-            ODataFilterParser parser = new ODataFilterParser("geo.intersects ( IsAvailable, 'Edm.Boolean' )");
-
-            ODataExpression exp = parser.Parse();
-
-            Assert.IsNotNull(exp);
-            Assert.IsTrue(exp.GetType() == typeof(ODataFunctionCallExpression));
-
-            ODataFunctionCallExpression unExp = (ODataFunctionCallExpression)exp;
-            Assert.AreEqual(ExpressionType.Call, unExp.ExpressionType);
-
-            Assert.AreEqual("geo.intersects", unExp.Name);
-            Assert.AreEqual("IsAvailable", unExp.Arguments.Cast<ODataMemberExpression>().First().Member);
-            Assert.AreEqual("Edm.Boolean", unExp.Arguments.Skip(1).Cast<ODataConstantExpression>().First().Value);
-        }
-
-        [TestMethod]
         public void AnyMethodCallExpressionTest()
         {
             ODataFilterParser parser = new ODataFilterParser("any(Actors, it/Name eq 'John Belushi')");
