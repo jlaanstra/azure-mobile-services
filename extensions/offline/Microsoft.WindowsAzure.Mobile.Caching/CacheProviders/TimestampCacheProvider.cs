@@ -45,7 +45,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             if (await network.IsConnectedToInternet())
             {
-                await this.Synchronize(requestUri, getResponse);
+                await this.Synchronize(this.GetCleanTableUri(requestUri), getResponse);
 
                 //make sure the timestamps are loaded
                 await this.EnsureTimestampsLoaded();
@@ -161,7 +161,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             if (await network.IsConnectedToInternet())
             {
-                await this.Synchronize(requestUri, getResponse);
+                await this.Synchronize(this.GetCleanTableUri(requestUri), getResponse);
 
                 response = await base.Insert(requestUri, content, getResponse);
                 string rawContent = await response.ReadAsStringAsync();
@@ -249,7 +249,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             if (await network.IsConnectedToInternet())
             {
                 //make sure we synchronize
-                await this.Synchronize(requestUri, getResponse);
+                await this.Synchronize(this.GetCleanTableUri(requestUri), getResponse);
 
                 response = await base.Update(requestUri, content, getResponse);
                 string rawContent = await response.ReadAsStringAsync();
@@ -323,7 +323,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             if (await network.IsConnectedToInternet())
             {
-                await this.Synchronize(requestUri, getResponse);
+                await this.Synchronize(this.GetCleanTableUri(requestUri), getResponse);
 
                 HttpContent remoteResults = await base.Delete(requestUri, getResponse);
                 string rawContent = await remoteResults.ReadAsStringAsync();
@@ -388,6 +388,21 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 endIndex = path.Length;
             }
             return path.Substring(startIndex, endIndex - startIndex);
+        }
+
+        private Uri GetCleanTableUri(Uri requestUri)
+        {
+            Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
+
+            string tables = "/tables/";
+            string path = requestUri.AbsolutePath;
+            int startIndex = path.IndexOf(tables) + tables.Length;
+            int endIndex = path.IndexOf('/', startIndex);
+            if (endIndex == -1)
+            {
+                endIndex = path.Length;
+            }
+            return new Uri(path.Substring(0, endIndex - startIndex));
         }
 
         /// <summary>
@@ -482,10 +497,18 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// </summary>
         private bool hasLocalChanges = true;
 
-        private async Task Synchronize(Uri tableUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        /// <summary>
+        /// Synchronizes changes using the specified table URI. This Uri should end with /table/tablename
+        /// </summary>
+        /// <param name="tableUri">The table URI.</param>
+        /// <param name="getResponse">The get response.</param>
+        /// <returns></returns>
+        public override async Task Synchronize(Uri tableUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
         {
             Contract.Requires<ArgumentNullException>(tableUri != null, "tableUri");
             Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
+
+            Contract.Requires<ArgumentException>(tableUri.PathAndQuery.IndexOf("/tables/") != -1);
 
             //return is there is nothing to sync
             if (!hasLocalChanges)
