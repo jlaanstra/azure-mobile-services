@@ -33,5 +33,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             return false;
         }
+
+        public virtual Task Synchronize(Uri tableUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        {
+            return Task.FromResult(0);
+        }
     }
 }

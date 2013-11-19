@@ -31,3 +31,4 @@ using System.Runtime.InteropServices;
 [assembly: InternalsVisibleTo("Microsoft.WindowsAzure.Mobile.Caching.Win8")]
 [assembly: InternalsVisibleTo("Microsoft.WindowsAzure.Mobile.Caching.Win81")]
 [assembly: InternalsVisibleTo("Microsoft.WindowsAzure.Mobile.Caching.WP8")]
+[assembly: InternalsVisibleTo("Microsoft.WindowsAzure.Mobile.Caching.Test")]

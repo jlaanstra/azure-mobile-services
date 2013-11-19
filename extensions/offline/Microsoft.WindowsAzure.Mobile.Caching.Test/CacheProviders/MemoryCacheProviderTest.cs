@@ -13,7 +13,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         private StringContent testContent = new StringContent("Test", Encoding.UTF8);
 
         [TestMethod]
-        public void IsByDefaultChachingEverything()
+        public void IsByDefaultCachingEverything()
         {
             var memory = new MemoryCacheProvider(TimeSpan.FromMinutes(1));
 

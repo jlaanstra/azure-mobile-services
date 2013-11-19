@@ -17,5 +17,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             dispose();
         }
+
+        public static IDisposable Empty = new Disposable(() => { });
     }
 }
