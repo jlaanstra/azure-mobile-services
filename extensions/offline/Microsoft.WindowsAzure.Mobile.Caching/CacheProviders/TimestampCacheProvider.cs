@@ -106,7 +106,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 IQueryOptions uriQueryOptions = new UriQueryOptions(requestUri);
                 IQueryOptions queryOptions = new StaticQueryOptions()
                 {
-                    Filter = new FilterQuery(string.Format("{0} and status ne {1}", uriQueryOptions.Filter.RawValue, (int)ItemStatus.Deleted)),
+                    Filter = uriQueryOptions.Filter != null ?
+                        new FilterQuery(string.Format("{0} and status ne {1}", uriQueryOptions.Filter.RawValue, (int)ItemStatus.Deleted))
+                        : new FilterQuery(string.Format("status ne {0}", (int)ItemStatus.Deleted)),
                     InlineCount = uriQueryOptions.InlineCount,
                     OrderBy = uriQueryOptions.OrderBy,
                     Skip = uriQueryOptions.Skip,
@@ -395,14 +397,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
 
             string tables = "/tables/";
-            string path = requestUri.AbsolutePath;
-            int startIndex = path.IndexOf(tables) + tables.Length;
-            int endIndex = path.IndexOf('/', startIndex);
+            string url = requestUri.OriginalString;
+            int endIndex = url.IndexOf('/', url.IndexOf(tables) + tables.Length);
             if (endIndex == -1)
             {
-                endIndex = path.Length;
+                endIndex = url.Length;
             }
-            return new Uri(path.Substring(0, endIndex - startIndex));
+            return new Uri(url.Substring(0, endIndex));
         }
 
         /// <summary>
