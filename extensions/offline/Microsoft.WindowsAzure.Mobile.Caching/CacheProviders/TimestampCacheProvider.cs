@@ -20,19 +20,22 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         private readonly INetworkInformation network;
         private readonly IStructuredStorage storage;
+        private readonly ISynchronizer synchronizer;
         private readonly Func<Uri, bool> areWeCachingThis;
 
-        public TimestampCacheProvider(IStructuredStorage storage, INetworkInformation network, Func<Uri, bool> areWeCachingThis = null)
+        public TimestampCacheProvider(IStructuredStorage storage, INetworkInformation network, ISynchronizer synchronizer, Func<Uri, bool> areWeCachingThis = null)
         {
             Contract.Requires<ArgumentNullException>(storage != null, "storage");
             Contract.Requires<ArgumentNullException>(network != null, "network");
+            Contract.Requires<ArgumentNullException>(synchronizer != null, "synchronizer");
 
             this.network = network;
             this.storage = storage;
+            this.synchronizer = synchronizer;
             this.areWeCachingThis = areWeCachingThis ?? (u => true);
         }
 
-        public override async Task<HttpContent> Read(Uri requestUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Read(Uri requestUri, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
@@ -45,7 +48,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             if (await network.IsConnectedToInternet())
             {
-                await this.Synchronize(this.GetCleanTableUri(requestUri), getResponse);
+                await this.synchronizer.Synchronize(tableName);
 
                 //make sure the timestamps are loaded
                 await this.EnsureTimestampsLoaded();
@@ -64,10 +67,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                 //send the timestamped request
                 HttpContent remoteResults = await base.Read(stampedRequestUri, getResponse);
-                string rawContent = await remoteResults.ReadAsStringAsync();
-                json = JObject.Parse(rawContent);
-                ResponseValidator.EnsureValidReadResponse(json);
-                Debug.WriteLine("{0} returned:    {1}", stampedRequestUri, json);
+                json = await this.GetResponseAsJObject(remoteResults);
             }
             else
             {
@@ -85,22 +85,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 {
                     await this.SetLastTimestampForRequest(requestUri, newtimestamp.ToString());
                 }
-                //process changes and deletes
-                JToken results;
-                if (json.TryGetValue("results", out results) && results is JArray)
-                {
-                    JArray dataForInsertion = (JArray)results;
-                    foreach (JObject item in dataForInsertion)
-                    {
-                        item["status"] = (int)ItemStatus.Unchanged;
-                    }
-                    await this.storage.StoreData(tableName, dataForInsertion);
-                }
-                JToken deleted;
-                if (json.TryGetValue("deleted", out deleted))
-                {
-                    await this.storage.RemoveStoredData(tableName, deleted.Select(token => ((JValue)token).Value.ToString()));
-                }
+
+                await this.storage.StoreData(tableName, this.GetResultsJArrayFromJson(json));
+                await this.storage.RemoveStoredData(tableName, this.GetDeletedJArrayFromJson(json));
 
                 //parse uri into separate query options
                 IQueryOptions uriQueryOptions = new UriQueryOptions(requestUri);
@@ -150,7 +137,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <param name="getResponse">The get response.</param>
         /// <returns></returns>
         /// <exception cref="System.InvalidOperationException">Invalid response.</exception>
-        public override async Task<HttpContent> Insert(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Insert(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(content != null, "content");
@@ -163,40 +150,20 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             if (await network.IsConnectedToInternet())
             {
-                await this.Synchronize(this.GetCleanTableUri(requestUri), getResponse);
+                await this.synchronizer.Synchronize(tableName);
 
                 response = await base.Insert(requestUri, content, getResponse);
-                string rawContent = await response.ReadAsStringAsync();
-                JObject json = JObject.Parse(rawContent);
-                ResponseValidator.EnsureValidInsertResponse(json);
-                Debug.WriteLine("{0} returned:    {1}", requestUri, json);
-                JToken results;
-                if (json.TryGetValue("results", out results) && results is JArray)
-                {
-                    // result should be an array of a single item
-                    // insert them as an unchanged items
-                    dataForInsertion = (JArray)results;
-                    foreach (JObject item in dataForInsertion)
-                    {
-                        item["status"] = (int)ItemStatus.Unchanged;
-                    }
-                }
-                else
-                {
-                    dataForInsertion = new JArray();
-                }
+                JObject json = await this.GetResponseAsJObject(response);
+                dataForInsertion = this.GetResultsJArrayFromJson(json);
             }
             else
             {
-                hasLocalChanges = true;
+                this.synchronizer.NotifyOfUnsynchronizedChange();
 
                 string rawContent = await content.ReadAsStringAsync();
                 response = new StringContent(rawContent);
                 JObject result = JObject.Parse(rawContent);
-                //return -1 as an id for local inserted items
-                //normally this would be assigned by the server,
-                //but, you know, we are offline
-                result["id"] = -1;
+                result["id"] = Guid.NewGuid().ToString();
                 //set status to inserted
                 result["status"] = (int)ItemStatus.Inserted;
                 //wrap the object in an array
@@ -216,6 +183,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             return new StringContent(returnResult.ToString());
         }
 
+
+
         /// <summary>
         /// Handles cached changes.
         /// </summary>
@@ -228,19 +197,16 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// or
         /// Invalid response.
         /// </exception>
-        public override async Task<HttpContent> Update(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Update(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(content != null, "content");
             Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
 
-            //Ensure guid
-            string guidString = requestUri.GetQueryNameValuePairs().Where(kvp => kvp.Key.Equals("guid"))
-                    .Select(kvp => kvp.Value)
-                    .FirstOrDefault();
-            if (string.IsNullOrEmpty(guidString))
+            string id = GetIdFromUri(requestUri);
+            if (string.IsNullOrEmpty(id))
             {
-                throw new InvalidOperationException("In offline scenarios a guid is required for update operations.");
+                throw new InvalidOperationException("Can't retrieve id from Uri.");
             }
 
             string tableName = this.GetTableNameFromUri(requestUri);
@@ -251,45 +217,20 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             if (await network.IsConnectedToInternet())
             {
                 //make sure we synchronize
-                await this.Synchronize(this.GetCleanTableUri(requestUri), getResponse);
+                await this.synchronizer.Synchronize(tableName);
 
                 response = await base.Update(requestUri, content, getResponse);
-                string rawContent = await response.ReadAsStringAsync();
-                JObject json = JObject.Parse(rawContent);
-                ResponseValidator.EnsureValidUpdateResponse(json);
-                Debug.WriteLine("{0} returned:    {1}", requestUri, json);
-                JToken results;
-                if (json.TryGetValue("results", out results) && results is JArray)
-                {
-                    // result should be an array of objects, mostly a single one
-                    // insert them as unchanged items.
-                    dataForInsertion = (JArray)results;
-                    foreach (JObject item in dataForInsertion)
-                    {
-                        item["status"] = (int)ItemStatus.Unchanged;
-                    }
-                }
-                else
-                {
-                    dataForInsertion = new JArray();
-                }
+                JObject json = await this.GetResponseAsJObject(response);
+                dataForInsertion = this.GetResultsJArrayFromJson(json);
             }
             else
             {
-                hasLocalChanges = true;
+                this.synchronizer.NotifyOfUnsynchronizedChange();
 
                 string rawContent = await content.ReadAsStringAsync();
                 response = new StringContent(rawContent);
                 JObject result = JObject.Parse(rawContent);
-                //if local item not known by server, it is still an insert
-                if (requestUri.AbsolutePath.Contains("/-1"))
-                {
-                    result["status"] = (int)ItemStatus.Inserted;
-                }
-                else
-                {
-                    result["status"] = (int)ItemStatus.Changed;
-                }
+                result["status"] = (int)ItemStatus.Changed;
                 dataForInsertion = new JArray(result);
             }
 
@@ -306,68 +247,45 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             return new StringContent(returnResult.ToString());
         }
 
-        public override async Task<HttpContent> Delete(Uri requestUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Delete(Uri requestUri, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
 
-            string guidString = requestUri.GetQueryNameValuePairs().Where(kvp => kvp.Key.Equals("guid"))
-                   .Select(kvp => kvp.Value)
-                   .FirstOrDefault();
-            if (string.IsNullOrEmpty(guidString))
+            string id = GetIdFromUri(requestUri);
+            if (string.IsNullOrEmpty(id))
             {
-                throw new InvalidOperationException("In offline scenarios a guid is required for delete operations.");
+                throw new InvalidOperationException("Can't retrieve id from Uri.");
             }
 
             string tableName = this.GetTableNameFromUri(requestUri);
 
-            IEnumerable<string> guidsToRemove;
+            IEnumerable<string> idsToRemove;
 
             if (await network.IsConnectedToInternet())
             {
-                await this.Synchronize(this.GetCleanTableUri(requestUri), getResponse);
+                await this.synchronizer.Synchronize(tableName);
 
                 HttpContent remoteResults = await base.Delete(requestUri, getResponse);
-                string rawContent = await remoteResults.ReadAsStringAsync();
-                JObject json = JObject.Parse(rawContent);
-                ResponseValidator.EnsureValidDeleteResponse(json);
-                Debug.WriteLine("{0} returned:    {1}", requestUri, json);
-
-                JToken deleted;
-                if (json.TryGetValue("deleted", out deleted))
-                {
-                    guidsToRemove = deleted.Select(token => ((JValue)token).Value.ToString());
-                }
-                else
-                {
-                    guidsToRemove = new string[0];
-                }
+                JObject json = await this.GetResponseAsJObject(remoteResults);
+                idsToRemove = this.GetDeletedJArrayFromJson(json);
             }
             else
             {
-                hasLocalChanges = true;
+                this.synchronizer.NotifyOfUnsynchronizedChange();
 
                 //if local item (-1) not known by server
                 // we can just remove it locally and the server will never know about its existence
-                if (requestUri.AbsolutePath.Contains("/-1"))
-                {
-                    guidsToRemove = new[] { guidString };
-                }
-                else
-                {
-                    guidsToRemove = new string[0];
-                }
+                idsToRemove = new string[0];
             }
 
             using (await this.storage.OpenAsync())
             {
-                await this.storage.RemoveStoredData(tableName, guidsToRemove);
+                await this.storage.RemoveStoredData(tableName, idsToRemove);
 
+                //update status of current item 
                 JArray arr = new JArray();
-                foreach (var guid in guidsToRemove)
-                {
-                    arr.Add(new JObject() { { "guid", new JValue(guid) }, { "status", new JValue((int)ItemStatus.Deleted) } });
-                }
+                arr.Add(new JObject() { { "id", new JValue(id) }, { "status", new JValue((int)ItemStatus.Deleted) } });
 
                 await this.storage.UpdateData(tableName, arr);
             }
@@ -375,6 +293,60 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Debug.WriteLine("Returning response:    {0}", string.Empty);
 
             return new StringContent(string.Empty);
+        }
+
+        private async Task<JObject> GetResponseAsJObject(HttpContent response)
+        {
+            string rawContent = await response.ReadAsStringAsync();
+            JObject json = JObject.Parse(rawContent);
+            ResponseHelper.EnsureValidSyncResponse(json);
+            Debug.WriteLine("Reponse returned:    {0}", json);
+            return json;
+        }
+
+        private JArray GetResultsJArrayFromJson(JObject json)
+        {
+            JArray dataForInsertion;
+
+            JToken results;
+            if (json.TryGetValue("results", out results) && results is JArray)
+            {
+                // result should be an array of a single item
+                // insert them as an unchanged items
+                dataForInsertion = (JArray)results;
+                foreach (JObject item in dataForInsertion)
+                {
+                    item["status"] = (int)ItemStatus.Unchanged;
+                }
+            }
+            else
+            {
+                dataForInsertion = new JArray();
+            }
+
+            return dataForInsertion;
+        }
+
+        private IEnumerable<string> GetDeletedJArrayFromJson(JObject json)
+        {
+            JToken deleted;
+            if (json.TryGetValue("deleted", out deleted))
+            {
+                return deleted.Select(token => ((JValue)token).Value.ToString());
+            }
+            else
+            {
+                return new string[0];
+            }
+        }
+
+        private string GetIdFromUri(Uri requestUri)
+        {
+            Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
+
+            string path = requestUri.AbsolutePath;
+            int lastSlash = path.LastIndexOf('/');
+            return path.Substring(lastSlash + 1);
         }
 
         private string GetTableNameFromUri(Uri requestUri)
@@ -398,6 +370,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string tables = "/tables/";
             string url = requestUri.OriginalString;
+            //remove query
+            url = url.Split('?').First();
             int endIndex = url.IndexOf('/', url.IndexOf(tables) + tables.Length);
             if (endIndex == -1)
             {
@@ -413,7 +387,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <returns></returns>
         public override bool ProvidesCacheForRequest(Uri requestUri)
         {
-            return requestUri.OriginalString.Contains("/tables/") && areWeCachingThis(requestUri);
+            return !requestUri.OriginalString.Contains("sync=1") && requestUri.OriginalString.Contains("/tables/") && areWeCachingThis(requestUri);
         }
 
         #region Timestamps
@@ -476,120 +450,16 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
 
             JObject item = new JObject();
-            item.Add("guid", timestampTuple.Item1);
+            item.Add("id", timestampTuple.Item1);
             // required column so provide default
-            item.Add("id", -1);
             item.Add("requesturl", requestUri.OriginalString);
-            item.Add("timestamp", timestampTuple.Item2);
+            item.Add("__version", timestampTuple.Item2);
             //timestamps are local only so always unchanged
             item.Add("status", (int)ItemStatus.Unchanged);
             await this.storage.StoreData("timestamp_requests", new JArray(item));
 
             //after successfull insert add locally
             this.timestamps[requestUri.OriginalString] = timestampTuple;
-        }
-
-        #endregion
-
-        #region Sync
-
-        /// <summary>
-        /// We are going to be smart by using this value.
-        /// </summary>
-        private bool hasLocalChanges = true;
-
-        /// <summary>
-        /// Synchronizes changes using the specified table URI. This Uri should end with /table/tablename
-        /// </summary>
-        /// <param name="tableUri">The table URI.</param>
-        /// <param name="getResponse">The get response.</param>
-        /// <returns></returns>
-        public override async Task Synchronize(Uri tableUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
-        {
-            Contract.Requires<ArgumentNullException>(tableUri != null, "tableUri");
-            Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
-
-            Contract.Requires<ArgumentException>(tableUri.PathAndQuery.IndexOf("/tables/") != -1);
-
-            //return is there is nothing to sync
-            if (!hasLocalChanges)
-            {
-                return;
-            }
-
-            string tableName = this.GetTableNameFromUri(tableUri);
-
-            // all communication with the database should be on the same thread
-            using (await this.storage.OpenAsync())
-            {
-                //sent all local changes 
-                JArray localChanges = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery("status ne 0") });
-                foreach (JObject item in localChanges)
-                {
-                    JToken status;
-                    HttpStatusCode code = HttpStatusCode.OK;
-                    if (item.TryGetValue("status", out status))
-                    {
-                        ItemStatus itemStatus = (ItemStatus)(int)status;
-                        item.Remove("status");
-                        //preform calls based on status: insert, change, delete 
-                        switch (itemStatus)
-                        {
-                            case ItemStatus.Inserted:
-                                //new items cannot have an id so remove any temporary id assigned by the client
-                                item.Remove("id");
-                                //remove any defined timestamp properties
-                                item.Remove("timestamp");
-
-                                try
-                                {
-                                    await getResponse(tableUri, new StringContent(JsonConvert.SerializeObject(item), Encoding.UTF8, "application/json"), HttpMethod.Post);
-                                }
-                                catch (HttpStatusCodeException ex)
-                                {
-                                    code = ex.StatusCode;
-                                }
-                                //item already exists on the server
-                                if (code == HttpStatusCode.Conflict)
-                                {
-                                    await this.storage.RemoveStoredData(tableName, new[] { item["guid"].ToString().ToLowerInvariant() });
-                                }
-                                break;
-                            case ItemStatus.Changed:
-                                JToken id;
-                                if (item.TryGetValue("id", out id))
-                                {
-                                    try
-                                    {
-                                        await getResponse(new Uri(tableUri.OriginalString + "/" + id.ToString()), new StringContent(JsonConvert.SerializeObject(item), Encoding.UTF8, "application/json"), new HttpMethod("PATCH"));
-                                    }
-                                    catch (HttpStatusCodeException ex)
-                                    {
-                                        code = ex.StatusCode;
-                                    }
-                                }
-                                break;
-                            case ItemStatus.Deleted:
-                                JToken id2;
-                                if (item.TryGetValue("id", out id2))
-                                {
-                                    try
-                                    {
-                                        await getResponse(new Uri(tableUri.OriginalString + "/" + id2.ToString()), null, HttpMethod.Delete);
-                                    }
-                                    catch (HttpStatusCodeException ex)
-                                    {
-                                        code = ex.StatusCode;
-                                    }
-                                }
-                                break;
-                        };
-                    }
-
-                    //we have synchronized everything
-                    this.hasLocalChanges = false;
-                }
-            }
         }
 
         #endregion

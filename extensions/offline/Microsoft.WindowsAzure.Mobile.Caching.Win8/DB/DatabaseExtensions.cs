@@ -27,8 +27,30 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             { typeof(decimal), (stm, i) => new JValue(stm.GetDoubleAt(i)) },
             { typeof(float), (stm, i) => new JValue(stm.GetDoubleAt(i)) },
             { typeof(bool), (stm, i) => new JValue(stm.GetIntAt(i) == 1) },
-            { typeof(DateTime), (stm, i) => new JValue(DateTime.Parse(stm.GetTextAt(i))) },
-            { typeof(DateTimeOffset), (stm, i) => new JValue(DateTimeOffset.Parse(stm.GetTextAt(i))) },
+            { typeof(DateTime), (stm, i) => 
+            {
+                DateTime datetime;
+                if(DateTime.TryParse(stm.GetTextAt(i), out datetime))
+                {
+                    return new JValue(datetime);
+                }
+                else
+                {
+                    return null;
+                }
+            } },
+            { typeof(DateTimeOffset), (stm, i) => 
+            {
+                DateTimeOffset datetime;
+                if (DateTimeOffset.TryParse(stm.GetTextAt(i), out datetime))
+                {
+                    return new JValue(datetime);
+                }
+                else
+                {
+                    return null;
+                }
+            } },
             { typeof(Guid), (stm, i) => new JValue(stm.GetTextAt(i)) },
         };
 
@@ -107,7 +129,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public static Task AddColumnForTableAsync(this Database This, string tableName, Column column)
         {
-            string sqlStatement = string.Format("ALTER TABLE {0} ADD COLUMN ({1})", tableName, column.AsSQL());
+            string sqlStatement = string.Format("ALTER TABLE {0} ADD COLUMN {1}", tableName, column.AsSQL());
             return This.ExecuteStatementAsync(sqlStatement).AsTask();
         }
 
@@ -130,7 +152,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                             throw new InvalidOperationException("Type is unknown for a mapping to a sqlite type.");
                         }
 
-                        item[col.Name] = valueEvaluator(stm, i);
+                        if (stm.GetColumnType(i) != ColumnType.Null)
+                        {
+                            item[col.Name] = valueEvaluator(stm, i);
+                        }
+                        else
+                        {
+                            item[col.Name] = null;
+                        }
                     }
 
                     results.Add(item);

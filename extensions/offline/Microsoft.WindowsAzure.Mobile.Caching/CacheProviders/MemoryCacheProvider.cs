@@ -34,7 +34,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <param name="requestUri">The Uri of the request.</param>
         /// <param name="getResponse">A function to actually call the server.</param>
         /// <returns>A response possibly cached.</returns>
-        public override async Task<HttpContent> Read(Uri requestUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Read(Uri requestUri, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
         {
             Tuple<DateTime, HttpContent> cachedValue;
             //look for existing item and check if not expired

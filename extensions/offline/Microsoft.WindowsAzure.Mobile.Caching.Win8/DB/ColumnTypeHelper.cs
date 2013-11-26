@@ -58,7 +58,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <returns></returns>
         public static Type GetClrTypeForColumnType(string columnType)
         {
-            int underscoreIndex = columnType.IndexOf('_');
+            int underscoreIndex = columnType.LastIndexOf('_');
             string type = string.Empty;
             if (columnType.Length > underscoreIndex)
             {
@@ -77,7 +77,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         public static string GetColumnTypeForClrType(Type clrType)
         {
             string prefix;
-            if(!columnTypes.TryGetValue(clrType, out prefix))
+            if (!columnTypes.TryGetValue(clrType, out prefix))
             {
                 throw new InvalidOperationException("Types is unknown for a mapping to a sqlite type.");
             }

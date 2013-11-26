@@ -4,14 +4,10 @@ function read(query, user, request) {
 
     var timestamp = request.parameters.timestamp;
     
-    var requestHasTimestamp = false;
-    if(timestamp !== undefined)
-    {
-        requestHasTimestamp = true;
-    }
+    var requestHasTimestamp = timestamp !== undefined;
     
     request.execute({
-        systemProperties: ['__version'],
+        systemProperties: ['*'],
         success: function (results)
         {
             var response = {};
