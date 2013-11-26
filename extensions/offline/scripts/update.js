@@ -2,18 +2,11 @@
 
 function update(item, user, request) {
 
-    // item must have a guid
-    if(item.guid === undefined)
-    {
-        request.respond(statusCodes.BAD_REQUEST,
-        "item must have a guid");
-        return;
-    }
     //existing items must have a timestamp
-    if(item.timestamp === undefined)
+    if(item.__version === undefined)
     {
         request.respond(statusCodes.BAD_REQUEST,
-        "update operation must have timestamp");
+        "update operation must have __version");
         return;
     }
     //item cannot set isDeleted
@@ -26,7 +19,7 @@ function update(item, user, request) {
     
     var tableName = tables.current.getTableName();
     
-    var sql = "SELECT * FROM " + tableName + " WHERE guid = ?";
+    var sql = "SELECT * FROM " + tableName + " WHERE id = ?";
     
     //updating happens here
     var processResult = function(result)
@@ -36,37 +29,27 @@ function update(item, user, request) {
         delete item.timestamp;
         
         request.execute({
-            success: function()
+            systemProperties: ['__version'],
+            success: function(newItem)
             {
                 var response = {};
                 
                 // put in right group
-                if(item.isDeleted)
+                if (newItem.isDeleted)
                 {       
                     response.results = [ ];     
-                    response.deleted = [ item ];
+                    response.deleted = [newItem];
                 }
                 else
                 {
-                    response.results = [ item ];
+                    response.results = [newItem];
                     response.deleted = [ ];
                 }
                 
                 //we dont want to send deletion information
-                delete item.isDeleted;
+                delete newItem.isDeleted;
                 
-                mssql.query("SELECT timestamp FROM " + tableName + " WHERE id = ?", [item.id], {
-                    success: function(ts)
-                    {
-                        item.timestamp = ts[0].timestamp.toString('hex');
-                        request.respond(statusCodes.OK, response);
-                    },
-                    error: function (err)
-                    {
-                        console.error("Error occurred. Details:", err);
-                        request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
-                    }
-                });
+                request.respond(statusCodes.OK, response);
             },
             error: function (err)
             {
@@ -76,20 +59,10 @@ function update(item, user, request) {
         });        
     }
     
-    mssql.query(sql, [item.guid], {
+    request.execute({
+        systemProperties: ['__version'],
         success: function(results)
-        {  
-            if(results.length > 1)
-            {
-                request.respond(statusCodes.INTERNAL_SERVER_ERROR, 
-                "multiple items were returned by the database for guid: " + item.guid);
-            }
-            if(results.length < 1)
-            {
-                request.respond(statusCodes.NOT_FOUND, 
-                "an item with guid: " + item.guid + " was not found");
-            }
-            
+        {            
             var result = results[0]
             //make hex string of timestamp
             result.timestamp = result.timestamp.toString('hex');
@@ -107,6 +80,10 @@ function update(item, user, request) {
             {
                 request.respond(statusCodes.BAD_REQUEST);
             }  
+        },
+        conflict: function (serverItem)
+        {
+            resolveConflict(serverItem, item, processResult);
         },
         error: function (err)
         {

@@ -12,6 +12,7 @@
   See http://www.galasoft.ch/mvvm
 */
 
+using System;
 using System.Net.Http;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Ioc;
@@ -38,9 +39,9 @@ namespace Todo.ViewModels
             ToggableNetworkInformation networkInfo = new ToggableNetworkInformation();
 
             SimpleIoc.Default.Register<INetworkInformation>(() => networkInfo);
-            
-            SimpleIoc.Default.Register<IStructuredStorage>(() => new SQLiteCacheStorage("cache"));
 
+            SimpleIoc.Default.Register<IStructuredStorage>(() => new SQLiteCacheStorage("cache"));
+            SimpleIoc.Default.Register<Func<Uri, bool>>(() => (u => false));
             //SimpleIoc.Default.Register<ICacheProvider, DisabledCacheProvider>();
             SimpleIoc.Default.Register<ICacheProvider, TimestampCacheProvider>();
 
@@ -52,7 +53,7 @@ namespace Todo.ViewModels
             SimpleIoc.Default.Register<MainViewModel>();
 
             DelegatingHandler handler = new CacheHandler(SimpleIoc.Default.GetInstance<ICacheProvider>());
-                        
+
             // Configure your mobile service here
             MobileServiceClient MobileService = new MobileServiceClient(
                 Constants.MobileServiceUrl,
@@ -78,7 +79,7 @@ namespace Todo.ViewModels
                 return ServiceLocator.Current.GetInstance<MainViewModel>();
             }
         }
-        
+
         public static void Cleanup()
         {
             // TODO Clear the ViewModels

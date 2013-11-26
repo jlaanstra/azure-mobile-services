@@ -3,17 +3,8 @@ GO
 
 ALTER TABLE [<SCHEMA-NAME>].[<TABLE-NAME>]
 ADD
-    [guid]      UNIQUEIDENTIFIER NOT NULL,
-    [timestamp] ROWVERSION       NOT NULL,
-    [isDeleted] BIT              NOT NULL,
-    CONSTRAINT CK_guid UNIQUE NONCLUSTERED ([guid] ASC)
-
-
+    [isDeleted] BIT              NOT NULL
+	
 GO
-CREATE NONCLUSTERED INDEX [IX_guid]
-    ON [<SCHEMA-NAME>].[<TABLE-NAME>]([guid] ASC);
-
-
-GO
-CREATE NONCLUSTERED INDEX [IX_timestamp]
-    ON [<SCHEMA-NAME>].[<TABLE-NAME>]([timestamp] ASC);
+CREATE NONCLUSTERED INDEX [IX_version]
+    ON [<SCHEMA-NAME>].[<TABLE-NAME>]([__version] ASC);

@@ -11,6 +11,7 @@ function read(query, user, request) {
     }
     
     request.execute({
+        systemProperties: ['__version'],
         success: function (results)
         {
             var response = {};
@@ -29,7 +30,6 @@ function read(query, user, request) {
                     var nondeleted = [];
                     
                     results.map(function(r) {
-                        r.timestamp = r.timestamp.toString('hex');
                         var isDeleted = r.isDeleted;
                         delete r.isDeleted;
                         if(!requestHasTimestamp)
@@ -39,7 +39,7 @@ function read(query, user, request) {
                                 nondeleted.push(r);                                
                             }
                         }
-                        else if(r.timestamp > timestamp)
+                        else if(r.__version > timestamp)
                         {
                             if(!isDeleted)
                             {
