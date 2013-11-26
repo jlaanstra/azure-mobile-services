@@ -29,7 +29,7 @@ function update(item, user, request) {
         delete item.timestamp;
         
         request.execute({
-            systemProperties: ['__version'],
+            systemProperties: ['*'],
             success: function(newItem)
             {
                 var response = {};
@@ -60,7 +60,7 @@ function update(item, user, request) {
     }
     
     request.execute({
-        systemProperties: ['__version'],
+        systemProperties: ['*'],
         success: function(results)
         {            
             var result = results[0]

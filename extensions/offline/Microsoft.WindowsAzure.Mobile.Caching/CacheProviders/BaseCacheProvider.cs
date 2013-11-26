@@ -9,34 +9,29 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public abstract class BaseCacheProvider : ICacheProvider
     {
-        public virtual Task<HttpContent> Read(Uri requestUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public virtual Task<HttpContent> Read(Uri requestUri, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
         {
-            return getResponse(requestUri, null, HttpMethod.Get);
+            return getResponse(requestUri, null, HttpMethod.Get, null);
         }
 
-        public virtual Task<HttpContent> Insert(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public virtual Task<HttpContent> Insert(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
         {
-            return getResponse(requestUri, content, HttpMethod.Post);
+            return getResponse(requestUri, content, HttpMethod.Post, null);
         }
 
-        public virtual Task<HttpContent> Update(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public virtual Task<HttpContent> Update(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
         {
-            return getResponse(requestUri, content, new HttpMethod("PATCH"));
+            return getResponse(requestUri, content, new HttpMethod("PATCH"), null);
         }
 
-        public virtual Task<HttpContent> Delete(Uri requestUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
+        public virtual Task<HttpContent> Delete(Uri requestUri, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
         {
-            return getResponse(requestUri, null, HttpMethod.Delete);
+            return getResponse(requestUri, null, HttpMethod.Delete, null);
         }
 
         public virtual bool ProvidesCacheForRequest(Uri requestUri)
         {
             return false;
-        }
-
-        public virtual Task Synchronize(Uri tableUri, Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse)
-        {
-            return Task.FromResult(0);
         }
     }
 }

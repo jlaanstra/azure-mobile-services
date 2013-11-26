@@ -21,7 +21,7 @@ function insert(item, user, request) {
     item.isDeleted = false;
     
     request.execute({
-        systemProperties: ['__version'],
+        systemProperties: ['*'],
         success: function ()
         {
             var result = item;

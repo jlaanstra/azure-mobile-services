@@ -13,7 +13,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
     {
         private readonly ICacheProvider cache;
 
-        private static readonly AsyncLock m_lock = new AsyncLock();
+        private static readonly AsyncLock @lock = new AsyncLock();
 
         /// <summary>
         /// 
@@ -33,12 +33,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             HttpResponseMessage response = null;
-            
 
             //are we caching request for this URI?
             if (!cache.ProvidesCacheForRequest(request.RequestUri))
             {
-                response = await base.SendAsync(request, cancellationToken);
+                return await base.SendAsync(request, cancellationToken);
             }
             else
             {
@@ -46,7 +45,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 CancellationTokenSource cts = new CancellationTokenSource();
 
                 //closure capturing the actual base SendAsync
-                Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> sendAsync = async (uri, content, method) =>
+                Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> sendAsync = async (uri, content, method, headers) =>
                 {
                     //dispose old responses
                     if (response != null)
@@ -62,6 +61,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     {
                         req.Headers.Add(header.Key, header.Value);
                     }
+                    if (headers != null)
+                    {
+                        foreach (var header in headers)
+                        {
+                            req.Headers.Add(header.Key, header.Value);
+                        }
+                    }
                     req.Version = request.Version;
                     foreach (var property in request.Properties)
                     {
@@ -74,18 +80,18 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     if (!response.IsSuccessStatusCode)
                     {
                         string error = await response.Content.ReadAsStringAsync();
-                        throw new HttpStatusCodeException(response.StatusCode,error);
+                        throw new HttpStatusCodeException(response.StatusCode, error);
                     }
 
                     HttpContent responseContent = response.Content;
 
                     // cleanup the request
-                    req.Dispose();                
+                    req.Dispose();
 
                     return responseContent;
                 };
-            
-                using (await m_lock.LockAsync())
+
+                using (await @lock.LockAsync())
                 {
                     switch (request.Method.Method)
                     {

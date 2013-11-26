@@ -192,7 +192,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Contract.Requires(item != null, "item cannot be null");
 
             IDictionary<string, Column> cols = new Dictionary<string, Column>(defaultColumns);
-            foreach (var kvp in item.Where(prop => !(prop.Key.Equals("status") || prop.Key.Equals("id") || prop.Key.Equals("guid") || prop.Key.Equals("timestamp"))))
+            foreach (var kvp in item.Where(prop => !defaultColumns.ContainsKey(prop.Key)))
             {
                 cols.Add(kvp.Key, new Column(kvp.Key, ColumnTypeHelper.GetColumnTypeForClrType(((JValue)kvp.Value).Value.GetType()), true));
             }
