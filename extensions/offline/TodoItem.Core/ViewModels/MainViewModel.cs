@@ -15,7 +15,7 @@ namespace Todo.ViewModels
         private readonly IMobileServiceClient client;
         private readonly NetworkInformationDelegate networkDelegate;
 
-        private readonly IMobileServiceTable<TodoItem> todoTable;
+        private readonly IMobileServiceTable<TodoItem2> todoTable;
 
         /// <summary>
         /// 
@@ -26,25 +26,25 @@ namespace Todo.ViewModels
             this.client = client;
             this.networkDelegate = networkDelegate;
 
-            this.todoTable = client.GetTable<TodoItem>();
+            this.todoTable = client.GetTable<TodoItem2>();
 
             this.RefreshCommand = new RelayCommand(this.RefreshTodoItems);
             this.SaveCommand = new RelayCommand(this.Save);
-            this.CompletedCommand = new RelayCommand<TodoItem>(x => this.Complete(x));
-            this.RemoveCommand = new RelayCommand<TodoItem>(x => this.Remove(x));
+            this.CompletedCommand = new RelayCommand<TodoItem2>(x => this.Complete(x));
+            this.RemoveCommand = new RelayCommand<TodoItem2>(x => this.Remove(x));
 
-            this.Items = new ObservableCollection<TodoItem>();
+            this.Items = new ObservableCollection<TodoItem2>();
 
             //this.RefreshTodoItems();
         }
 
         public RelayCommand RefreshCommand { get; set; }
-        public RelayCommand<TodoItem> RemoveCommand { get; set; }
+        public RelayCommand<TodoItem2> RemoveCommand { get; set; }
         public RelayCommand SaveCommand { get; set; }
-        public RelayCommand<TodoItem> CompletedCommand { get; set; }
+        public RelayCommand<TodoItem2> CompletedCommand { get; set; }
 
-        private ObservableCollection<TodoItem> items;
-        public ObservableCollection<TodoItem> Items
+        private ObservableCollection<TodoItem2> items;
+        public ObservableCollection<TodoItem2> Items
         {
             get { return this.items; }
             set { this.Set(ref items, value, "Items"); }
@@ -63,11 +63,10 @@ namespace Todo.ViewModels
             set { this.networkDelegate.IsOnline = value; }
         }
 
-        private async Task InsertTodoItem(TodoItem todoItem)
+        private async Task InsertTodoItem(TodoItem2 todoItem)
         {
             // This code inserts a new TodoItem into the database. When the operation completes
             // and Mobile Services has assigned an Id, the item is added to the CollectionView
-            todoItem.RealId = Guid.NewGuid();
             await todoTable.InsertAsync(todoItem);
             Items.Add(todoItem);
         }
@@ -91,7 +90,7 @@ namespace Todo.ViewModels
 
         private async void Save()
         {
-            var todoItem = new TodoItem { Text = this.Text };
+            var todoItem = new TodoItem2 { Text = this.Text };
             try
             {
                 await InsertTodoItem(todoItem);
@@ -102,14 +101,14 @@ namespace Todo.ViewModels
             }
         }
 
-        private async void Complete(TodoItem item)
+        private async void Complete(TodoItem2 item)
         {
             try
             {
                 // This code takes a freshly completed TodoItem and updates the database. When the MobileService 
                 // responds, the item is removed from the list 
                 item.Complete = true;
-                await todoTable.UpdateAsync(item, new Dictionary<string, string>() { { "guid", item.RealId.ToString() } });
+                await todoTable.UpdateAsync(item);
                 items.Remove(item);
             }
             catch
@@ -118,13 +117,13 @@ namespace Todo.ViewModels
             }
         }
 
-        private async void Remove(TodoItem item)
+        private async void Remove(TodoItem2 item)
         {
             try
             {
                 // This code takes a freshly completed TodoItem and updates the database. When the MobileService 
                 // responds, the item is removed from the list 
-                await todoTable.DeleteAsync(item, new Dictionary<string, string>() { {"guid", item.RealId.ToString() } });
+                await todoTable.DeleteAsync(item);
                 items.Remove(item);
             }
             catch

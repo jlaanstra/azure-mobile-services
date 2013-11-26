@@ -24,9 +24,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         private IDictionary<string, Column> defaultColumns = new Dictionary<string, Column>()
         {
-            { "id", new Column("id", ColumnTypeHelper.GetColumnTypeForClrType(typeof(long)), false, null, 0, true) }, // server id
-            { "guid", new Column("guid", ColumnTypeHelper.GetColumnTypeForClrType(typeof(Guid)), false, null, 1, true) }, // globally unique
-            { "timestamp", new Column("timestamp", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), true, null, 0, true) }, // timestamp of local item
+            { "id", new Column("id", ColumnTypeHelper.GetColumnTypeForClrType(typeof(Guid)), false, null, 1, true) }, // globally unique
+            { "__version", new Column("__version", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), true, null, 0, true) }, // version of local item
             { "status", new Column("status", ColumnTypeHelper.GetColumnTypeForClrType(typeof(int)), false, null, 0, true) }, // status: unchanged:0 inserted:1 changed:2 deleted:3
         };
 
@@ -116,7 +115,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             // the actual columns for the item
             IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);
             await this.EnsureSchemaForTable(tableName, db, columns);
-            
+
             try
             {
                 Debug.WriteLine("Inserting...");
@@ -143,9 +142,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
 
             EnsureDatabaseThread();
-            
+
             // the actual columns for the item
-            IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);                        
+            IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);
             await this.EnsureSchemaForTable(tableName, db, columns);
 
             try
@@ -188,7 +187,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        private IDictionary<string,Column> GetColumnsFromItem(IDictionary<string, JToken> item)
+        private IDictionary<string, Column> GetColumnsFromItem(IDictionary<string, JToken> item)
         {
             Contract.Requires(item != null, "item cannot be null");
 
@@ -253,7 +252,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         [Conditional("Debug")]
         private void EnsureDatabaseThread()
         {
-            if(this.databaseThreadId != Environment.CurrentManagedThreadId)
+            if (this.databaseThreadId != Environment.CurrentManagedThreadId)
             {
                 throw new InvalidOperationException(string.Format("Database accessed from thread with id {0} while id {1} was expected.", Environment.CurrentManagedThreadId, this.databaseThreadId));
             }

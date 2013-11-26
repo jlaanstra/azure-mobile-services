@@ -2,18 +2,11 @@
 
 function insert(item, user, request) {
 
-    // item must have a guid
-    if(!item.guid)
-    {
-        request.respond(statusCodes.BAD_REQUEST,
-        "item must have a guid");
-        return;
-    }
     //new items cannot have a timestamp
-    if(item.timestamp)
+    if(item.__version)
     {
         request.respond(statusCodes.BAD_REQUEST,
-        "insert operation cannot have timestamp");
+        "insert operation cannot have __version");
         return;
     }
     //item cannot set isDeleted
@@ -23,13 +16,12 @@ function insert(item, user, request) {
         "item cannot set isDeleted, isDeleted is a reserved column name");
         return;
     }
-    
-    var tableName = "todoitem";
-    
-    // an inserted item cannot be deleted
+        
+    // a newly inserted item is not deleted
     item.isDeleted = false;
     
     request.execute({
+        systemProperties: ['__version'],
         success: function ()
         {
             var result = item;
@@ -46,17 +38,7 @@ function insert(item, user, request) {
             response.results = [ result ];
             response.deleted = [];
             
-            mssql.query("SELECT timestamp FROM " + tableName + " WHERE id = ?", [item.id], {
-                success: function(ts)
-                {
-                    result.timestamp = ts[0].timestamp.toString('hex');
-                    request.respond(statusCodes.OK, response);
-                },
-                error: function (err) {
-                    console.error("Error occurred. Details:", err);
-                    request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
-                }
-            });
+            request.respond(statusCodes.OK, response);
         },
         error: function (err) {
             console.error("Error occurred. Details:", err);
@@ -71,5 +53,4 @@ function insert(item, user, request) {
             }            
         }
     });
-
 }
