@@ -90,7 +90,7 @@ namespace Todo.ViewModels
 
         private async void Save()
         {
-            var todoItem = new TodoItem2 { Text = this.Text, Id = Guid.NewGuid() };
+            var todoItem = new TodoItem2 { Text = this.Text, Guid = Guid.NewGuid() };
             try
             {
                 await InsertTodoItem(todoItem);

@@ -12,7 +12,14 @@ namespace Todo
     public class TodoItem2
     {
         [JsonProperty("id")]
-        public Guid Id { get; set; }
+        public string Id { get; set; }
+
+        [JsonIgnore]
+        public Guid Guid
+        {
+            get { return new Guid(Id); }
+            set { Id = value.ToString(); }
+        }
 
         [CreatedAt]
         [JsonProperty("__createdAt")]

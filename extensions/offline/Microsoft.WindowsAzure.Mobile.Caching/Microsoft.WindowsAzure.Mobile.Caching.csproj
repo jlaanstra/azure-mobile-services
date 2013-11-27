@@ -104,6 +104,7 @@
     <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AsyncLazy.cs" />
     <Compile Include="AsyncLock.cs" />
     <Compile Include="CacheProviders\BaseCacheProvider.cs" />
     <Compile Include="CacheProviders\DisabledCacheProvider.cs" />
@@ -112,9 +113,13 @@
     <Compile Include="Disposable.cs" />
     <Compile Include="Exceptions\HttpStatusCodeException.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />
+    <Compile Include="Extensions\JObjectExtensions.cs" />
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Handler\CacheHandler.cs" />
-    <Compile Include="ICacheProvider.cs" />
+    <Compile Include="Helpers\UriHelper.cs" />
+    <Compile Include="Http\Http.cs" />
+    <Compile Include="CacheProviders\ICacheProvider.cs" />
+    <Compile Include="Http\IHttp.cs" />
     <Compile Include="INetworkInformation.cs" />
     <Compile Include="InlineCount.cs" />
     <Compile Include="ItemStatus.cs" />
@@ -143,7 +148,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Response\ResponseHelper.cs" />
+    <Compile Include="Helpers\ResponseHelper.cs" />
     <Compile Include="Storage\IStructuredStorage.cs" />
     <Compile Include="Synchronize\ISynchronizer.cs" />
     <Compile Include="Synchronize\Synchronizer.cs" />
@@ -189,6 +194,9 @@
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Response\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <Import Project="..\packages\Microsoft.Bcl.Build.1.0.13\tools\Microsoft.Bcl.Build.targets" Condition="Exists('..\packages\Microsoft.Bcl.Build.1.0.13\tools\Microsoft.Bcl.Build.targets')" />

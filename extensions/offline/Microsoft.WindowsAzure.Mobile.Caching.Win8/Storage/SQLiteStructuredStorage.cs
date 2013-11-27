@@ -24,7 +24,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         private IDictionary<string, Column> defaultColumns = new Dictionary<string, Column>()
         {
-            { "id", new Column("id", ColumnTypeHelper.GetColumnTypeForClrType(typeof(Guid)), false, null, 1, true) }, // globally unique
+            { "id", new Column("id", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), false, null, 1, true) }, // globally unique
             { "__version", new Column("__version", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), true, null, 0, true) }, // version of local item
             { "status", new Column("status", ColumnTypeHelper.GetColumnTypeForClrType(typeof(int)), false, null, 0, true) }, // status: unchanged:0 inserted:1 changed:2 deleted:3
         };

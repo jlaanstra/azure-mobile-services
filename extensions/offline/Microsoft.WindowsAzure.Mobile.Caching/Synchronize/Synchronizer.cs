@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.MobileServices;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching
@@ -16,11 +18,18 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <summary>
         /// We are going to be smart by using this value.
         /// </summary>
+        /// <param name="storage">The storage.</param>
         private bool hasLocalChanges = true;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Synchronizer"/> class.
+        /// </summary>
+        /// <param name="storage">The storage.</param>
         public Synchronizer(IStructuredStorage storage)
         {
             Contract.Requires<ArgumentNullException>(storage != null, "storage");
+
+            this.storage = storage;
         }
 
         /// <summary>
@@ -29,15 +38,18 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <param name="tableUri">The table URI.</param>
         /// <param name="getResponse">The get response.</param>
         /// <returns></returns>
-        public async Task Synchronize(string tableName)
+        public async Task Synchronize(Uri tableUri, IHttp http)
         {
-            Contract.Requires<ArgumentNullException>(tableName != null, "tableName");
+            Contract.Requires<ArgumentNullException>(tableUri != null, "tableUri");
+            Contract.Requires<ArgumentNullException>(http != null, "http");
 
-            //return is there is nothing to sync
+            // return is there is nothing to sync
             if (!hasLocalChanges)
             {
                 return;
             }
+
+            string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
             // all communication with the database should be on the same thread
             using (await this.storage.OpenAsync())
@@ -55,13 +67,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                         switch (itemStatus)
                         {
                             case ItemStatus.Inserted:
-                                await this.SynchronizeInsert(item, tableName);
+                                await this.SynchronizeInsert(item, tableUri, tableName, http);
                                 break;
                             case ItemStatus.Changed:
-                                await this.SynchronizeUpdate(item, tableName);
+                                await this.SynchronizeUpdate(item, tableUri, tableName, http);
                                 break;
                             case ItemStatus.Deleted:
-                                await this.SynchronizeDelete(item, tableName);
+                                await this.SynchronizeDelete(item, tableUri, tableName, http);
                                 break;
                         };
                     }
@@ -72,30 +84,52 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        private async Task SynchronizeInsert(JObject item, string tableName)
+        private async Task SynchronizeInsert(JObject item, Uri tableUri, string tableName, IHttp http)
         {
-            await this.MobileServiceClient.GetTable(tableName).InsertAsync(item, new Dictionary<string, string>() { { "sync", "1" } });
+            //remove systemproperties
+            JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
 
-            await this.storage.StoreData(tableName, new JArray(item));
+            HttpRequestMessage req = http.CreateRequest(HttpMethod.Post, tableUri);
+            req.Content = new StringContent(insertItem.ToString(Formatting.None));
+
+            JObject response = await http.GetJsonAsync(req);
+            JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
+
+            await this.storage.StoreData(tableName, results);
         }
 
-        private async Task SynchronizeUpdate(JObject item, string tableName)
+        private async Task SynchronizeUpdate(JObject item, Uri tableUri, string tableName, IHttp http)
         {
-            await this.MobileServiceClient.GetTable(tableName).UpdateAsync(item, new Dictionary<string, string>() { { "sync", "1" } });
+            string version = item["__version"].ToString();
+            //remove systemproperties
+            JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
 
-            await this.storage.UpdateData(tableName, new JArray(item));
+            Uri updateUri = new Uri(tableUri.OriginalString + "/" + item["id"].ToString());
+
+            HttpRequestMessage req = http.CreateRequest(new HttpMethod("PATCH"), updateUri, new Dictionary<string, string>() { { "If-Match", string.Format("\"{0}\"", version) } });
+            req.Content = new StringContent(insertItem.ToString(Formatting.None));
+
+            JObject response = await http.GetJsonAsync(req);
+            JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
+
+            await this.storage.UpdateData(tableName, results);
         }
 
-        private async Task SynchronizeDelete(JObject item, string tableName)
+        private async Task SynchronizeDelete(JObject item, Uri tableUri, string tableName, IHttp http)
         {
+            Uri deleteUri = new Uri(tableUri.OriginalString + "/" + item["id"].ToString());
 
+            HttpRequestMessage req = http.CreateRequest(HttpMethod.Delete, deleteUri);
+
+            JObject response = await http.GetJsonAsync(req);
+            IEnumerable<string> deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
+
+            await this.storage.RemoveStoredData(tableName, deleted);
         }
 
         public void NotifyOfUnsynchronizedChange()
         {
             hasLocalChanges = true;
         }
-
-        public IMobileServiceClient MobileServiceClient { get; set; }
     }
 }

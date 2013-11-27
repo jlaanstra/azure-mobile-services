@@ -4,34 +4,47 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public abstract class BaseCacheProvider : ICacheProvider
     {
-        public virtual Task<HttpContent> Read(Uri requestUri, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
+        public virtual async Task<HttpContent> Read(Uri requestUri)
         {
-            return getResponse(requestUri, null, HttpMethod.Get, null);
+            this.Http.OriginalRequest.RequestUri = requestUri;
+            HttpResponseMessage response = await this.Http.SendOriginalAsync();
+            return response.Content;
         }
 
-        public virtual Task<HttpContent> Insert(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
+        public virtual async Task<HttpContent> Insert(Uri requestUri, HttpContent content)
         {
-            return getResponse(requestUri, content, HttpMethod.Post, null);
+            this.Http.OriginalRequest.RequestUri = requestUri;
+            this.Http.OriginalRequest.Content = content;
+            HttpResponseMessage response = await this.Http.SendOriginalAsync();
+            return response.Content;
         }
 
-        public virtual Task<HttpContent> Update(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
+        public virtual async Task<HttpContent> Update(Uri requestUri, HttpContent content)
         {
-            return getResponse(requestUri, content, new HttpMethod("PATCH"), null);
+            this.Http.OriginalRequest.RequestUri = requestUri;
+            this.Http.OriginalRequest.Content = content;
+            HttpResponseMessage response = await this.Http.SendOriginalAsync();
+            return response.Content;
         }
 
-        public virtual Task<HttpContent> Delete(Uri requestUri, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
+        public virtual async Task<HttpContent> Delete(Uri requestUri)
         {
-            return getResponse(requestUri, null, HttpMethod.Delete, null);
+            this.Http.OriginalRequest.RequestUri = requestUri;
+            HttpResponseMessage response = await this.Http.SendOriginalAsync();
+            return response.Content;
         }
 
         public virtual bool ProvidesCacheForRequest(Uri requestUri)
         {
             return false;
         }
+
+        public IHttp Http { get; set; }
     }
 }
