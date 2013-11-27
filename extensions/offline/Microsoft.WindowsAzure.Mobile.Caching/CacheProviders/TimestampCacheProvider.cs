@@ -22,7 +22,15 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         private readonly IStructuredStorage storage;
         private readonly ISynchronizer synchronizer;
         private readonly Func<Uri, bool> areWeCachingThis;
+        private readonly AsyncLazy<bool> timestampsLoaded;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TimestampCacheProvider"/> class.
+        /// </summary>
+        /// <param name="storage">The storage.</param>
+        /// <param name="network">The network.</param>
+        /// <param name="synchronizer">The synchronizer.</param>
+        /// <param name="areWeCachingThis">The are we caching this.</param>
         public TimestampCacheProvider(IStructuredStorage storage, INetworkInformation network, ISynchronizer synchronizer, Func<Uri, bool> areWeCachingThis = null)
         {
             Contract.Requires<ArgumentNullException>(storage != null, "storage");
@@ -33,28 +41,25 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             this.storage = storage;
             this.synchronizer = synchronizer;
             this.areWeCachingThis = areWeCachingThis ?? (u => true);
+            this.timestampsLoaded = new AsyncLazy<bool>(() => this.LoadTimestamps());
         }
 
-        public override async Task<HttpContent> Read(Uri requestUri, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Read(Uri requestUri)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
-            Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
 
             //this will be our return object
             JObject json = new JObject();
 
             // get the tablename out of the uri
-            string tableName = this.GetTableNameFromUri(requestUri);
+            string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
             if (await network.IsConnectedToInternet())
             {
-                await this.synchronizer.Synchronize(tableName);
-
-                //make sure the timestamps are loaded
-                await this.EnsureTimestampsLoaded();
+                await this.synchronizer.Synchronize(tableName, this.Http);
 
                 //get latest known timestamp for a reqeust
-                string timestamp = GetLastTimestampForRequest(requestUri);
+                string timestamp = await GetLastTimestampForRequest(requestUri);
                 Uri stampedRequestUri;
                 if (timestamp != null)
                 {
@@ -66,8 +71,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 }
 
                 //send the timestamped request
-                HttpContent remoteResults = await base.Read(stampedRequestUri, getResponse);
-                json = await this.GetResponseAsJObject(remoteResults);
+                HttpContent remoteResults = await base.Read(stampedRequestUri);
+                json = await ResponseHelper.GetResponseAsJObject(remoteResults);
             }
             else
             {
@@ -86,8 +91,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     await this.SetLastTimestampForRequest(requestUri, newtimestamp.ToString());
                 }
 
-                await this.storage.StoreData(tableName, this.GetResultsJArrayFromJson(json));
-                await this.storage.RemoveStoredData(tableName, this.GetDeletedJArrayFromJson(json));
+                await this.storage.StoreData(tableName, ResponseHelper.GetResultsJArrayFromJson(json));
+                await this.storage.RemoveStoredData(tableName, ResponseHelper.GetDeletedJArrayFromJson(json));
 
                 //parse uri into separate query options
                 IQueryOptions uriQueryOptions = new UriQueryOptions(requestUri);
@@ -137,24 +142,23 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <param name="getResponse">The get response.</param>
         /// <returns></returns>
         /// <exception cref="System.InvalidOperationException">Invalid response.</exception>
-        public override async Task<HttpContent> Insert(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Insert(Uri requestUri, HttpContent content)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(content != null, "content");
-            Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
 
-            string tableName = this.GetTableNameFromUri(requestUri);
+            string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
             HttpContent response;
             JArray dataForInsertion;
 
             if (await network.IsConnectedToInternet())
             {
-                await this.synchronizer.Synchronize(tableName);
+                await this.synchronizer.Synchronize(tableName, this.Http);
 
-                response = await base.Insert(requestUri, content, getResponse);
-                JObject json = await this.GetResponseAsJObject(response);
-                dataForInsertion = this.GetResultsJArrayFromJson(json);
+                response = await base.Insert(requestUri, content);
+                JObject json = await ResponseHelper.GetResponseAsJObject(response);
+                dataForInsertion = ResponseHelper.GetResultsJArrayFromJson(json);
             }
             else
             {
@@ -197,19 +201,18 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// or
         /// Invalid response.
         /// </exception>
-        public override async Task<HttpContent> Update(Uri requestUri, HttpContent content, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Update(Uri requestUri, HttpContent content)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(content != null, "content");
-            Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
 
-            string id = GetIdFromUri(requestUri);
+            string id = UriHelper.GetIdFromUri(requestUri);
             if (string.IsNullOrEmpty(id))
             {
                 throw new InvalidOperationException("Can't retrieve id from Uri.");
             }
 
-            string tableName = this.GetTableNameFromUri(requestUri);
+            string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
             HttpContent response;
             JArray dataForInsertion;
@@ -217,11 +220,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             if (await network.IsConnectedToInternet())
             {
                 //make sure we synchronize
-                await this.synchronizer.Synchronize(tableName);
+                await this.synchronizer.Synchronize(tableName, this.Http);
 
-                response = await base.Update(requestUri, content, getResponse);
-                JObject json = await this.GetResponseAsJObject(response);
-                dataForInsertion = this.GetResultsJArrayFromJson(json);
+                response = await base.Update(requestUri, content);
+                JObject json = await ResponseHelper.GetResponseAsJObject(response);
+                dataForInsertion = ResponseHelper.GetResultsJArrayFromJson(json);
             }
             else
             {
@@ -247,28 +250,27 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             return new StringContent(returnResult.ToString());
         }
 
-        public override async Task<HttpContent> Delete(Uri requestUri, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Delete(Uri requestUri)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
-            Contract.Requires<ArgumentNullException>(getResponse != null, "getResponse");
 
-            string id = GetIdFromUri(requestUri);
+            string id = UriHelper.GetIdFromUri(requestUri);
             if (string.IsNullOrEmpty(id))
             {
                 throw new InvalidOperationException("Can't retrieve id from Uri.");
             }
 
-            string tableName = this.GetTableNameFromUri(requestUri);
+            string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
             IEnumerable<string> idsToRemove;
 
             if (await network.IsConnectedToInternet())
             {
-                await this.synchronizer.Synchronize(tableName);
+                await this.synchronizer.Synchronize(tableName, this.Http);
 
-                HttpContent remoteResults = await base.Delete(requestUri, getResponse);
-                JObject json = await this.GetResponseAsJObject(remoteResults);
-                idsToRemove = this.GetDeletedJArrayFromJson(json);
+                HttpContent remoteResults = await base.Delete(requestUri);
+                JObject json = await ResponseHelper.GetResponseAsJObject(remoteResults);
+                idsToRemove = ResponseHelper.GetDeletedJArrayFromJson(json);
             }
             else
             {
@@ -295,91 +297,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             return new StringContent(string.Empty);
         }
 
-        private async Task<JObject> GetResponseAsJObject(HttpContent response)
-        {
-            string rawContent = await response.ReadAsStringAsync();
-            JObject json = JObject.Parse(rawContent);
-            ResponseHelper.EnsureValidSyncResponse(json);
-            Debug.WriteLine("Reponse returned:    {0}", json);
-            return json;
-        }
-
-        private JArray GetResultsJArrayFromJson(JObject json)
-        {
-            JArray dataForInsertion;
-
-            JToken results;
-            if (json.TryGetValue("results", out results) && results is JArray)
-            {
-                // result should be an array of a single item
-                // insert them as an unchanged items
-                dataForInsertion = (JArray)results;
-                foreach (JObject item in dataForInsertion)
-                {
-                    item["status"] = (int)ItemStatus.Unchanged;
-                }
-            }
-            else
-            {
-                dataForInsertion = new JArray();
-            }
-
-            return dataForInsertion;
-        }
-
-        private IEnumerable<string> GetDeletedJArrayFromJson(JObject json)
-        {
-            JToken deleted;
-            if (json.TryGetValue("deleted", out deleted))
-            {
-                return deleted.Select(token => ((JValue)token).Value.ToString());
-            }
-            else
-            {
-                return new string[0];
-            }
-        }
-
-        private string GetIdFromUri(Uri requestUri)
-        {
-            Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
-
-            string path = requestUri.AbsolutePath;
-            int lastSlash = path.LastIndexOf('/');
-            return path.Substring(lastSlash + 1);
-        }
-
-        private string GetTableNameFromUri(Uri requestUri)
-        {
-            Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
-
-            string tables = "/tables/";
-            string path = requestUri.AbsolutePath;
-            int startIndex = path.IndexOf(tables) + tables.Length;
-            int endIndex = path.IndexOf('/', startIndex);
-            if (endIndex == -1)
-            {
-                endIndex = path.Length;
-            }
-            return path.Substring(startIndex, endIndex - startIndex);
-        }
-
-        private Uri GetCleanTableUri(Uri requestUri)
-        {
-            Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
-
-            string tables = "/tables/";
-            string url = requestUri.OriginalString;
-            //remove query
-            url = url.Split('?').First();
-            int endIndex = url.IndexOf('/', url.IndexOf(tables) + tables.Length);
-            if (endIndex == -1)
-            {
-                endIndex = url.Length;
-            }
-            return new Uri(url.Substring(0, endIndex));
-        }
-
         /// <summary>
         /// 
         /// </summary>
@@ -387,7 +304,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <returns></returns>
         public override bool ProvidesCacheForRequest(Uri requestUri)
         {
-            return !requestUri.OriginalString.Contains("sync=1") && requestUri.OriginalString.Contains("/tables/") && areWeCachingThis(requestUri);
+            return requestUri.OriginalString.Contains("/tables/") && areWeCachingThis(requestUri);
         }
 
         #region Timestamps
@@ -403,7 +320,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             return Task.FromResult(0);
         }
 
-        private async Task LoadTimestamps()
+        private async Task<bool> LoadTimestamps()
         {
             using (await this.storage.OpenAsync())
             {
@@ -415,11 +332,15 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     this.timestamps.Add(uri["requesturl"].ToString(), Tuple.Create(uri["guid"].ToString(), uri["timestamp"].ToString()));
                 }
             }
+            return true;
         }
 
-        private string GetLastTimestampForRequest(Uri requestUri)
+        private async Task<string> GetLastTimestampForRequest(Uri requestUri)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
+
+            //make sure the timestamps are loaded
+            await this.timestampsLoaded;
 
             Tuple<string, string> timestampTuple;
             if (this.timestamps.TryGetValue(requestUri.OriginalString, out timestampTuple))

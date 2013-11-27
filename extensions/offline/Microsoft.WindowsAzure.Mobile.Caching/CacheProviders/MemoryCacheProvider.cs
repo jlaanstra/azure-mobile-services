@@ -12,7 +12,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
     /// </summary>
     public class MemoryCacheProvider : BaseCacheProvider
     {
-        private readonly Dictionary<Uri, Tuple<DateTime,HttpContent>> memCache;
+        private readonly Dictionary<Uri, Tuple<DateTime, HttpContent>> memCache;
         private readonly TimeSpan expirationTime;
         private readonly Func<Uri, bool> areWeCachingThis;
 
@@ -34,7 +34,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <param name="requestUri">The Uri of the request.</param>
         /// <param name="getResponse">A function to actually call the server.</param>
         /// <returns>A response possibly cached.</returns>
-        public override async Task<HttpContent> Read(Uri requestUri, Func<Uri, HttpContent, HttpMethod, IDictionary<string, string>, Task<HttpContent>> getResponse)
+        public override async Task<HttpContent> Read(Uri requestUri)
         {
             Tuple<DateTime, HttpContent> cachedValue;
             //look for existing item and check if not expired
@@ -47,7 +47,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
 
             //return and cache a fresh response
-            HttpContent content = await base.Read(requestUri, getResponse);
+            HttpContent content = await base.Read(requestUri);
             memCache[requestUri] = new Tuple<DateTime, HttpContent>(DateTime.UtcNow, content);
             return content;
         }

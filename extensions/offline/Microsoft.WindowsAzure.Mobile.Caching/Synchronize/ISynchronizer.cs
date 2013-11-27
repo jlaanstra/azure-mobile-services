@@ -10,6 +10,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
     {
         void NotifyOfUnsynchronizedChange();
 
-        Task Synchronize(string tableName);
+        Task Synchronize(string tableName, IHttp http);
     }
 }
