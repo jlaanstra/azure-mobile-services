@@ -14,6 +14,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
     {
         private Mock<IStructuredStorage> storage;
         private Mock<INetworkInformation> network;
+        private Mock<IHttp> http;
+        private Mock<ISynchronizer> synchronizer;
 
         [TestInitialize]
         public void Setup()
@@ -22,129 +24,27 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
             this.storage.Setup(iss => iss.OpenAsync()).Returns(() => Task.FromResult(Disposable.Empty));
             this.network = new Mock<INetworkInformation>();
             this.network.Setup(ini => ini.IsConnectedToInternet()).Returns(() => Task.FromResult(false));
-        }
-
-        [TestMethod]
-        public async Task SynchronizeInsertShouldRemoveIdAndTimestamp()
-        {
-            ICacheProvider provider = new TimestampCacheProvider(this.storage.Object, this.network.Object, null);
-
-            this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.Is<IQueryOptions>(iqo => iqo.Filter.RawValue.Equals("status ne 0")))).Returns(() =>
-            {
-                return Task.FromResult(new JArray(JObject.Parse(
-                        @"{
-                            ""id"": -1,
-                            ""guid"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
-                            ""status"": 1,
-                            ""timestamp"": ""00000000"",
-                            ""text"": ""text""
-                        }"
-                    )));
-            });
-
-            string sendjson = null;
-
-            Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse = async (u, c, m) =>
-            {
-                sendjson = await c.ReadAsStringAsync();
-                return new StringContent(string.Empty);
-            };
-
-            await provider.Synchronize(new Uri("http://localhost/tables/table/"), getResponse);
-
-            IDictionary<string, JToken> obj = JObject.Parse(sendjson);
-
-            Assert.IsFalse(obj.ContainsKey("id"));
-            Assert.IsFalse(obj.ContainsKey("status"));
-            Assert.IsFalse(obj.ContainsKey("timestamp"));
-        }
-
-        [TestMethod]
-        public async Task SynchronizeDeleteShouldAddIdToUrlAndSendEmptyBody()
-        {
-            ICacheProvider provider = new TimestampCacheProvider(this.storage.Object, this.network.Object, null);
-
-            this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.Is<IQueryOptions>(iqo => iqo.Filter.RawValue.Equals("status ne 0")))).Returns(() =>
-            {
-                return Task.FromResult(new JArray(JObject.Parse(
-                        @"{
-                            ""id"": 1,
-                            ""guid"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
-                            ""status"": 3,
-                            ""timestamp"": ""00000000"",
-                            ""text"": ""text""
-                        }"
-                    )));
-            });
-
-            HttpContent content = null;
-            string url = null;
-            HttpMethod method = null;
-
-            Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse = async (u, c, m) =>
-            {
-                url = u.OriginalString;
-                content = c;
-                method = m;
-                return new StringContent(string.Empty);
-            };
-
-            await provider.Synchronize(new Uri("http://localhost/tables/table/"), getResponse);
-
-            Assert.IsNull(content);
-            Assert.AreEqual(HttpMethod.Delete, method);
-            Assert.IsTrue(url.Last() == '1');
-        }
-
-        [TestMethod]
-        public async Task SynchronizeUpdateShouldKeepIdAndAddToUrl()
-        {
-            ICacheProvider provider = new TimestampCacheProvider(this.storage.Object, this.network.Object, null);
-
-            this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.Is<IQueryOptions>(iqo => iqo.Filter.RawValue.Equals("status ne 0")))).Returns(() =>
-            {
-                return Task.FromResult(new JArray(JObject.Parse(
-                        @"{
-                            ""id"": 1,
-                            ""guid"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
-                            ""status"": 2,
-                            ""timestamp"": ""00000000"",
-                            ""text"": ""text""
-                        }"
-                    )));
-            });
-
-            string sendjson = null;
-            string url = null;
-            HttpMethod method = null;
-
-            Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse = async (u, c, m) =>
-            {
-                url = u.OriginalString;
-                sendjson = await c.ReadAsStringAsync();
-                method = m;
-                return new StringContent(string.Empty);
-            };
-
-            await provider.Synchronize(new Uri("http://localhost/tables/table/"), getResponse);
-
-            IDictionary<string, JToken> obj = JObject.Parse(sendjson);
-
-            Assert.IsTrue(obj.ContainsKey("id"));
-            Assert.IsFalse(obj.ContainsKey("status"));
-            Assert.IsTrue(obj.ContainsKey("timestamp"));
-            Assert.AreEqual(new HttpMethod("PATCH"), method);
-            Assert.IsTrue(url.Last() == '1');
+            this.http = new Mock<IHttp>();
+            this.synchronizer = new Mock<ISynchronizer>();
+            this.synchronizer.Setup(s => s.Synchronize(It.IsAny<Uri>(), It.IsAny<IHttp>())).Returns(Task.FromResult(0));
         }
 
         [TestMethod]
         public async Task ReadShouldLoadTimestampsWhenOnline()
         {
-            ICacheProvider provider = new TimestampCacheProvider(this.storage.Object, this.network.Object, null);
+            ICacheProvider provider = new TimestampCacheProvider(this.storage.Object, this.network.Object, this.synchronizer.Object, null);
             string url = "http://localhost/tables/table/";
             string timestamp = "00000000";
 
             #region Setup
+
+            HttpResponseMessage response = new HttpResponseMessage();
+            response.Content = new StringContent(
+                @"{
+                    ""results"": [],
+                    ""deleted"": [],
+                    ""__version"": ""00000001""
+                }");
 
             this.network.Setup(ini => ini.IsConnectedToInternet()).Returns(() => Task.FromResult(true));
             this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.IsAny<IQueryOptions>()))
@@ -164,8 +64,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
                         //escape here
                             @"{{
                                 ""requesturl"": ""{0}"",
-                                ""guid"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
-                                ""timestamp"": ""{1}""
+                                ""id"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
+                                ""__version"": ""{1}""
                             }}"
                         , url, timestamp))));
                 });
@@ -179,45 +79,34 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
                 {
                     return Task.FromResult(0);
                 });
+            HttpRequestMessage request = new HttpRequestMessage();
+            request.Method = HttpMethod.Get;
+            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.SetupGet(h => h.OriginalRequest).Returns(request);
+
+            provider.Http = this.http.Object;
 
             #endregion
 
-            HttpContent sendjson = null;
-            string sendurl = null;
-            HttpMethod method = null;
+            HttpContent content = await provider.Read(new Uri(url));
 
-            Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse = async (u, c, m) =>
-            {
-                sendurl = u.OriginalString;
-                sendjson = c;
-                method = m;
-                return new StringContent(@"{
-                                            ""results"": [],
-                                            ""deleted"": [],
-                                            ""timestamp"": ""00000001""
-                                        }");
-            };
-
-            HttpContent content = await provider.Read(new Uri(url), getResponse);
-
+            Assert.IsNotNull(content);
             IDictionary<string, JToken> obj = JObject.Parse(await content.ReadAsStringAsync());
 
             Assert.IsTrue(obj.ContainsKey("results"));
             Assert.IsNotNull(obj["results"]);
-            Assert.IsNull(sendjson);
-            Assert.AreEqual(HttpMethod.Get, method);
-            Assert.AreEqual(string.Format("{0}&timestamp={1}", url, Uri.EscapeDataString(timestamp)), sendurl);
+            Assert.AreEqual(HttpMethod.Get, request.Method);
+            Assert.AreEqual(string.Format("{0}&timestamp={1}", url, Uri.EscapeDataString(timestamp)), request.RequestUri.OriginalString);
         }
 
         [TestMethod]
         public async Task ReadShouldPassResultsAndRemoveEverythingElse()
         {
-            ICacheProvider provider = new TimestampCacheProvider(this.storage.Object, this.network.Object, null);
+            ICacheProvider provider = new TimestampCacheProvider(this.storage.Object, this.network.Object, this.synchronizer.Object, null);
             string url = "http://localhost/tables/table/";
             string jsonObject = @"{
                                 ""id"": 1,
-                                ""guid"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
-                                ""timestamp"": ""00000000"",
+                                ""__version"": ""00000000"",
                                 ""text"": ""text""
                             }";
 
@@ -244,42 +133,38 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
                {
                    return Task.FromResult(new JArray(JObject.Parse(jsonObject)));
                });
+            HttpResponseMessage response = new HttpResponseMessage();
+            response.Content = new StringContent(string.Format(
+                @"{{
+                    ""results"": [ {0} ],
+                    ""deleted"": [ ""B1A60844-236A-43EA-851F-7DCD7D5755FA"" ],
+                    ""__version"": ""00000001""
+                }}", jsonObject));
+            HttpRequestMessage request = new HttpRequestMessage();
+            request.Method = HttpMethod.Get;
+            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.SetupGet(h => h.OriginalRequest).Returns(request);
+
+            provider.Http = this.http.Object;
 
             #endregion
 
-            HttpContent sendjson = null;
-            string sendurl = null;
-            HttpMethod method = null;
-
-            Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse = async (u, c, m) =>
-            {
-                sendurl = u.OriginalString;
-                sendjson = c;
-                method = m;
-                return new StringContent(string.Format(@"{{
-                                            ""results"": [ {0} ],
-                                            ""deleted"": [ ""B1A60844-236A-43EA-851F-7DCD7D5755FA"" ],
-                                            ""timestamp"": ""00000001""
-                                        }}", jsonObject));
-            };
-
-            HttpContent content = await provider.Read(new Uri(url), getResponse);
+            HttpContent content = await provider.Read(new Uri(url));
 
             IDictionary<string, JToken> obj = JObject.Parse(await content.ReadAsStringAsync());
 
             Assert.IsTrue(obj.ContainsKey("results"));
             Assert.IsFalse(obj.ContainsKey("deleted"));
-            Assert.IsFalse(obj.ContainsKey("timestamp"));
+            Assert.IsFalse(obj.ContainsKey("__version"));
 
             var results = obj["results"] as JArray;
             var result = results.First as IDictionary<string, JToken>;
 
             Assert.IsNotNull(result);
             Assert.IsTrue(result.ContainsKey("id"));
-            Assert.IsTrue(result.ContainsKey("guid"));
             Assert.IsTrue(result.ContainsKey("text"));
-            Assert.IsNull(sendjson);
-            Assert.AreEqual(HttpMethod.Get, method);
+            Assert.AreEqual(HttpMethod.Get, request.Method);
+            Assert.AreEqual(new Uri(url), request.RequestUri);
         }
     }
 

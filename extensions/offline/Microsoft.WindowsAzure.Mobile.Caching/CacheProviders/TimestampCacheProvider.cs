@@ -56,7 +56,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             if (await network.IsConnectedToInternet())
             {
-                await this.synchronizer.Synchronize(tableName, this.Http);
+                await this.synchronizer.Synchronize(UriHelper.GetCleanTableUri(requestUri), this.Http);
 
                 //get latest known timestamp for a reqeust
                 string timestamp = await GetLastTimestampForRequest(requestUri);
@@ -86,7 +86,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             using (await this.storage.OpenAsync())
             {
                 JToken newtimestamp;
-                if (json.TryGetValue("timestamp", out newtimestamp))
+                if (json.TryGetValue("__version", out newtimestamp))
                 {
                     await this.SetLastTimestampForRequest(requestUri, newtimestamp.ToString());
                 }
@@ -124,7 +124,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
 
             //remove time stamp values
-            json.Remove("timestamp");
+            json.Remove("__version");
             //remove deleted values
             json.Remove("deleted");
 
@@ -154,7 +154,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             if (await network.IsConnectedToInternet())
             {
-                await this.synchronizer.Synchronize(tableName, this.Http);
+                await this.synchronizer.Synchronize(UriHelper.GetCleanTableUri(requestUri), this.Http);
 
                 response = await base.Insert(requestUri, content);
                 JObject json = await ResponseHelper.GetResponseAsJObject(response);
@@ -220,7 +220,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             if (await network.IsConnectedToInternet())
             {
                 //make sure we synchronize
-                await this.synchronizer.Synchronize(tableName, this.Http);
+                await this.synchronizer.Synchronize(UriHelper.GetCleanTableUri(requestUri), this.Http);
 
                 response = await base.Update(requestUri, content);
                 JObject json = await ResponseHelper.GetResponseAsJObject(response);
@@ -266,7 +266,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             if (await network.IsConnectedToInternet())
             {
-                await this.synchronizer.Synchronize(tableName, this.Http);
+                await this.synchronizer.Synchronize(UriHelper.GetCleanTableUri(requestUri), this.Http);
 
                 HttpContent remoteResults = await base.Delete(requestUri);
                 JObject json = await ResponseHelper.GetResponseAsJObject(remoteResults);
@@ -329,7 +329,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 timestamps = new Dictionary<string, Tuple<string, string>>();
                 foreach (var uri in knownUris)
                 {
-                    this.timestamps.Add(uri["requesturl"].ToString(), Tuple.Create(uri["guid"].ToString(), uri["timestamp"].ToString()));
+                    this.timestamps.Add(uri["requesturl"].ToString(), Tuple.Create(uri["id"].ToString(), uri["__version"].ToString()));
                 }
             }
             return true;

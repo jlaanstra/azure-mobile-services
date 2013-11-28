@@ -82,6 +82,7 @@
     <Compile Include="CacheProviders\TimestampCacheProviderTest.cs" />
     <Compile Include="OData\Parser\ODataFilterParserTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Synchronizer\SynchronizerTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
