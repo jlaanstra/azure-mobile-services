@@ -61,7 +61,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             JToken value;
             if (!json.TryGetValue("results", out value) || !(value is JArray)
                 || !json.TryGetValue("deleted", out value) || !(value is JArray)
-                || !json.TryGetValue("timestamp", out value))
+                || !json.TryGetValue("__version", out value))
             {
                 throw new InvalidOperationException("Invalid sync response.");
             }
@@ -73,7 +73,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             JObject jobject = JObject.Parse(rawContent);
             EnsureValidSyncResponse(jobject);
             jobject.Remove("deleted");
-            jobject.Remove("timestamp");
+            jobject.Remove("__version");
 
             return new StringContent(jobject.ToString());
         }
@@ -84,7 +84,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             JObject jobject = JObject.Parse(rawContent);
             EnsureValidSyncResponse(jobject);
             jobject.Remove("deleted");
-            jobject.Remove("timestamp");
+            jobject.Remove("__version");
 
             return new StringContent(((JArray)jobject["results"]).First.ToString());
         }
@@ -95,7 +95,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             JObject jobject = JObject.Parse(rawContent);
             EnsureValidSyncResponse(jobject);
             jobject.Remove("deleted");
-            jobject.Remove("timestamp");
+            jobject.Remove("__version");
 
             return new StringContent(((JArray)jobject["results"]).First.ToString());
         }

@@ -12,7 +12,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         public static JObject Remove(this JObject This, Func<JProperty, bool> filter)
         {
             var jobj = new JObject();
-            foreach (var prop in This.Properties().Where(filter))
+            foreach (var prop in This.Properties().Where(prop => !filter(prop)))
             {
                 jobj.Add(prop.Name, prop.Value);
             }

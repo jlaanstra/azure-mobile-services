@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 {
@@ -11,6 +12,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
     {
         private Uri testUri = new Uri("http://localhost/");
         private StringContent testContent = new StringContent("Test", Encoding.UTF8);
+        private Mock<IHttp> http;
+
+        [TestInitialize]
+        public void Setup()
+        {
+            this.http = new Mock<IHttp>();
+        }
 
         [TestMethod]
         public void IsByDefaultCachingEverything()
@@ -23,27 +31,31 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         [TestMethod]
         public async Task ReadShouldCacheForTheTimeSpanProvided()
         {
+            #region Setup
             var memory = new MemoryCacheProvider(TimeSpan.FromSeconds(5));
             HttpContent empty = new StringContent(string.Empty);
 
-            HttpContent resultContent = testContent;
+            HttpRequestMessage request = new HttpRequestMessage();
+            request.Method = HttpMethod.Get;
+            HttpResponseMessage response = new HttpResponseMessage();
+            response.Content = testContent;
+            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.SetupGet(h => h.OriginalRequest).Returns(request);
+            
+            memory.Http = this.http.Object;
+            #endregion
 
-            Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse = (u, c, m) =>
-            {
-                return Task.FromResult(resultContent);
-            };
-
-            HttpContent result = await memory.Read(testUri, getResponse);
+            HttpContent result = await memory.Read(testUri);
             Assert.AreEqual(testContent, result);
 
-            resultContent = empty;
+            response.Content = empty;
 
-            result = await memory.Read(testUri, getResponse);
+            result = await memory.Read(testUri);
             Assert.AreEqual(testContent, result);
 
             await Task.Delay(5000);
 
-            result = await memory.Read(testUri, getResponse);
+            result = await memory.Read(testUri);
             Assert.AreEqual(empty, result);
         }
     }

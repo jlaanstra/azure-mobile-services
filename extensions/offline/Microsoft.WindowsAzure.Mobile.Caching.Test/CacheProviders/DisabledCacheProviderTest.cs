@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.WindowsAzure.MobileServices.Caching.CacheProviders;
+using Moq;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 {
@@ -12,109 +13,107 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
     {
         private Uri testUri = new Uri("http://localhost/");
         private StringContent testContent = new StringContent("Test", Encoding.UTF8);
+        private Mock<IHttp> http;
+
+        [TestInitialize]
+        public void Setup()
+        {
+            this.http = new Mock<IHttp>();
+        }
 
         [TestMethod]
         public void DisabledCacheProviderDoesNotCacheForUri()
         {
             var disabled = new DisabledCacheProvider();
 
-            Assert.IsFalse(disabled.ProvidesCacheForRequest(new Uri("http://localhost/")));
+            Assert.IsFalse(disabled.ProvidesCacheForRequest(testUri));
         }
 
         [TestMethod]
-        public void ReadShouldPassTheRequestOn()
+        public async Task ReadShouldPassTheUriOn()
         {
             var disabled = new DisabledCacheProvider();
 
-            Uri uri = null;
-            HttpContent content = null;
-            HttpMethod method = null;
-            Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse = (u, c, m) =>
-            {
-                uri = u;
-                content = c;
-                method = m;
+            HttpRequestMessage request = new HttpRequestMessage();
+            request.Method = HttpMethod.Get;
+            HttpResponseMessage response = new HttpResponseMessage();
+            response.Content = testContent;
+            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
-                return Task.FromResult(content);
-            };
+            disabled.Http = this.http.Object;
 
-            disabled.Read(testUri, getResponse);
+            HttpContent content = await disabled.Read(testUri);
 
-            Assert.AreEqual(testUri, uri);
-            Assert.AreEqual(null, content);
-            Assert.AreEqual(HttpMethod.Get, method);
-        }
-
-        [TestMethod]
-        public void InsertShouldPassTheRequestOn()
-        {
-            var disabled = new DisabledCacheProvider();
-
-            Uri uri = null;
-            HttpContent content = null;
-            HttpMethod method = null;
-            Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse = (u, c, m) =>
-            {
-                uri = u;
-                content = c;
-                method = m;
-
-                return Task.FromResult(content);
-            };
-
-            disabled.Insert(testUri, testContent, getResponse);
-
-            Assert.AreEqual(testUri, uri);
+            Assert.AreEqual(testUri, request.RequestUri);
             Assert.AreEqual(testContent, content);
-            Assert.AreEqual(HttpMethod.Post, method);
+            Assert.AreEqual(HttpMethod.Get, request.Method);
         }
 
         [TestMethod]
-        public void UpdateShouldPassTheRequestOn()
+        public async Task InsertShouldPassTheUriAndContentOn()
         {
             var disabled = new DisabledCacheProvider();
 
-            Uri uri = null;
-            HttpContent content = null;
-            HttpMethod method = null;
-            Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse = (u, c, m) =>
-            {
-                uri = u;
-                content = c;
-                method = m;
+            HttpRequestMessage request = new HttpRequestMessage();
+            request.Method = HttpMethod.Post;
+            HttpResponseMessage response = new HttpResponseMessage();
+            response.Content = testContent;
+            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
-                return Task.FromResult(content);
-            };
+            disabled.Http = this.http.Object;
 
-            disabled.Update(testUri, testContent, getResponse);
+            HttpContent result = await disabled.Insert(testUri, testContent);
 
-            Assert.AreEqual(testUri, uri);
-            Assert.AreEqual(testContent, content);
-            Assert.AreEqual(new HttpMethod("PATCH"), method);
+            Assert.AreEqual(testUri, request.RequestUri);
+            Assert.AreEqual(testContent, request.Content);
+            Assert.AreEqual(HttpMethod.Post, request.Method);
+            Assert.AreEqual(testContent, result);
         }
 
         [TestMethod]
-        public void DeleteShouldPassTheRequestOn()
+        public async Task UpdateShouldPassTheUriAndContentOn()
         {
             var disabled = new DisabledCacheProvider();
 
-            Uri uri = null;
-            HttpContent content = null;
-            HttpMethod method = null;
-            Func<Uri, HttpContent, HttpMethod, Task<HttpContent>> getResponse = (u, c, m) =>
-            {
-                uri = u;
-                content = c;
-                method = m;
+            HttpRequestMessage request = new HttpRequestMessage();
+            request.Method = new HttpMethod("PATCH");
+            HttpResponseMessage response = new HttpResponseMessage();
+            response.Content = testContent;
+            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
-                return Task.FromResult(content);
-            };
+            disabled.Http = this.http.Object;
 
-            disabled.Delete(testUri, getResponse);
+            HttpContent result = await disabled.Update(testUri, testContent);
 
-            Assert.AreEqual(testUri, uri);
-            Assert.AreEqual(null, content);
-            Assert.AreEqual(HttpMethod.Delete, method);
+            Assert.AreEqual(testUri, request.RequestUri);
+            Assert.AreEqual(testContent, request.Content);
+            Assert.AreEqual(new HttpMethod("PATCH"), request.Method);
+            Assert.AreEqual(testContent, result);
+        }
+
+        [TestMethod]
+        public async Task DeleteShouldPassTheUriOn()
+        {
+            var disabled = new DisabledCacheProvider();
+
+            HttpRequestMessage request = new HttpRequestMessage();
+            request.Method = HttpMethod.Delete;
+            HttpResponseMessage response = new HttpResponseMessage();
+            response.Content = null;
+            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.SetupGet(h => h.OriginalRequest).Returns(request);
+
+            disabled.Http = this.http.Object;
+
+            HttpContent result = await disabled.Delete(testUri);
+
+            Assert.AreEqual(testUri, request.RequestUri);
+            Assert.AreEqual(null, request.Content);
+            Assert.AreEqual(HttpMethod.Delete, request.Method);
+            Assert.AreEqual(null, result);
         }
     }
 }
