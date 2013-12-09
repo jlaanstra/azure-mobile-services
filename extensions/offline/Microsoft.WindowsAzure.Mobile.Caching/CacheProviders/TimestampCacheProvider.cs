@@ -63,7 +63,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 Uri stampedRequestUri;
                 if (timestamp != null)
                 {
-                    stampedRequestUri = new Uri(string.Format("{0}&timestamp={1}", requestUri.OriginalString, Uri.EscapeDataString(timestamp)));
+                    stampedRequestUri = new Uri(string.Format("{0}&version={1}", requestUri.OriginalString, Uri.EscapeDataString(timestamp)));
                 }
                 else
                 {

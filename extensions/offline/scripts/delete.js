@@ -12,6 +12,7 @@ function del(id, user, request) {
         {   
             var response = {};
                     
+            response.__version = "";
             response.results = [];                 
             response.deleted = [id];
             request.respond(statusCodes.OK, response); 
