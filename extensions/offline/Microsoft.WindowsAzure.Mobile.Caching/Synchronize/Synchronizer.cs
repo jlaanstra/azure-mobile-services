@@ -90,7 +90,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
 
             HttpRequestMessage req = http.CreateRequest(HttpMethod.Post, tableUri);
-            req.Content = new StringContent(insertItem.ToString(Formatting.None));
+            req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
 
             JObject response = await http.GetJsonAsync(req);
             JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
@@ -107,7 +107,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Uri updateUri = new Uri(tableUri.OriginalString + "/" + item["id"].ToString());
 
             HttpRequestMessage req = http.CreateRequest(new HttpMethod("PATCH"), updateUri, new Dictionary<string, string>() { { "If-Match", string.Format("\"{0}\"", version) } });
-            req.Content = new StringContent(insertItem.ToString(Formatting.None));
+            req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
 
             JObject response = await http.GetJsonAsync(req);
             JArray results = ResponseHelper.GetResultsJArrayFromJson(response);

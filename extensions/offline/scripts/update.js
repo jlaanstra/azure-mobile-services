@@ -24,66 +24,57 @@ function update(item, user, request) {
     //updating happens here
     var processResult = function(result)
     {
-        item = result;
-        // you can't update a timestamp column
-        delete item.timestamp;
-        
+        console.log(result);
+        var response = {};
+
+        response.__version = "";
+                
+        // put in right group
+        if (result.isDeleted)
+        {       
+            response.results = [ ];     
+            response.deleted = [result];
+        }
+        else
+        {
+            response.results = [result];
+            response.deleted = [ ];
+        }
+                
+        //we dont want to send deletion information
+        delete result.isDeleted;
+                
+        request.respond(statusCodes.OK, response);     
+    }
+
+    var processResolution = function(resolvedItem)
+    {
+        item = resolvedItem;
+
+        // you can't update a __version column
+        delete item.__version;
+
         request.execute({
             systemProperties: ['*'],
-            success: function(newItem)
-            {
-                var response = {};
-                
-                // put in right group
-                if (newItem.isDeleted)
-                {       
-                    response.results = [ ];     
-                    response.deleted = [newItem];
-                }
-                else
-                {
-                    response.results = [newItem];
-                    response.deleted = [ ];
-                }
-                
-                //we dont want to send deletion information
-                delete newItem.isDeleted;
-                
-                request.respond(statusCodes.OK, response);
+            success: function () {
+                processResult(item);
             },
-            error: function (err)
-            {
+            error: function (err) {
                 console.error("Error occurred. Details:", err);
                 request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
             }
-        });        
+        });
     }
     
     request.execute({
         systemProperties: ['*'],
-        success: function(results)
-        {            
-            var result = results[0]
-            //make hex string of timestamp
-            result.timestamp = result.timestamp.toString('hex');
-            
-            if(result.timestamp == item.timestamp)
-            { 
-                processResult(item);
-            }
-            else if(result.timestamp > item.timestamp)
-            {
-                resolveConflict(result, item, processResult);
-            }
-            // client item is not known by the server
-            else
-            {
-                request.respond(statusCodes.BAD_REQUEST);
-            }  
+        success: function()
+        {
+            processResult(item);
         },
         conflict: function (serverItem)
         {
-            resolveConflict(serverItem, item, processResult);
+            resolveConflict(serverItem, item, processResolution);
         },
         error: function (err)
         {

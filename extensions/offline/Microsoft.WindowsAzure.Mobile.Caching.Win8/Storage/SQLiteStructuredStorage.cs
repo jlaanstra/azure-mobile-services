@@ -163,11 +163,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        public async Task RemoveStoredData(string tableName, IEnumerable<string> guids)
+        public async Task RemoveStoredData(string tableName, IEnumerable<string> ids)
         {
-            Debug.WriteLine(string.Format("Removing data for table {0}, guids: {1}", tableName, string.Join(",", guids)));
+            Debug.WriteLine(string.Format("Removing data for table {0}, ids: {1}", tableName, string.Join(",", ids)));
 
-            if (!guids.Any())
+            if (!ids.Any())
             {
                 return;
             }
@@ -178,7 +178,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 Debug.WriteLine("Deleting...");
 
-                await db.DeleteFromTableAsync(tableName, guids);
+                await db.DeleteFromTableAsync(tableName, ids);
             }
             catch (Exception ex)
             {

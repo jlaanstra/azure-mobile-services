@@ -213,10 +213,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string updateStatement = builder.ToString();
 
-            string sqlStatement = string.Format("UPDATE {0} SET {1} WHERE guid = '{2}'",
+            string sqlStatement = string.Format("UPDATE {0} SET {1} WHERE id = '{2}'",
                 tableName,
                 updateStatement,
-                data["guid"]
+                data["id"]
                 );
 
             Debug.WriteLine(sqlStatement);
@@ -260,9 +260,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        public static async Task DeleteFromTableAsync(this Database This, string tableName, IEnumerable<string> guids)
+        public static async Task DeleteFromTableAsync(this Database This, string tableName, IEnumerable<string> ids)
         {
-            int count = guids.Count();
+            int count = ids.Count();
 
             StringBuilder builder = new StringBuilder(count * 2 + 1);
             builder.Append('(');
@@ -275,7 +275,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string updateStatement = builder.ToString();
 
-            string sqlStatement = string.Format("DELETE FROM {0} WHERE guid IN {1}",
+            string sqlStatement = string.Format("DELETE FROM {0} WHERE id IN {1}",
                 tableName,
                 updateStatement
                 );
@@ -284,7 +284,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             using (Statement stm = await This.PrepareStatementAsync(sqlStatement))
             {
-                IEnumerator<string> e = guids.GetEnumerator();
+                IEnumerator<string> e = ids.GetEnumerator();
                 for (int i = 0; i < count; i++)
                 {
                     e.MoveNext();

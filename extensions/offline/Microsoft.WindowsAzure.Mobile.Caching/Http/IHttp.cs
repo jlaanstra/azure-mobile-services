@@ -35,10 +35,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             HttpContent responseContent = response.Content;
 
+            JObject result = await ResponseHelper.GetResponseAsJObject(responseContent);
+
             // cleanup the request
             request.Dispose();
+            response.Dispose();
 
-            return await ResponseHelper.GetResponseAsJObject(responseContent);
+            return result;
         }
     }
 }

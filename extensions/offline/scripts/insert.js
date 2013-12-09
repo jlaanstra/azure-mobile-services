@@ -35,6 +35,7 @@ function insert(item, user, request) {
             
             //we dont want to send deletion information
             delete result.isDeleted;
+            response.__version = "";
             response.results = [ result ];
             response.deleted = [];
             
