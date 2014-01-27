@@ -22,7 +22,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         private readonly IStructuredStorage storage;
         private readonly ISynchronizer synchronizer;
         private readonly Func<Uri, bool> areWeCachingThis;
-        private readonly AsyncLazy<bool> timestampsLoaded;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TimestampCacheProvider"/> class.
@@ -41,7 +40,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             this.storage = storage;
             this.synchronizer = synchronizer;
             this.areWeCachingThis = areWeCachingThis ?? (u => true);
-            this.timestampsLoaded = new AsyncLazy<bool>(() => this.LoadTimestamps());
         }
 
         public override async Task<HttpContent> Read(Uri requestUri)
@@ -56,23 +54,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             if (await network.IsConnectedToInternet())
             {
-                await this.synchronizer.Synchronize(UriHelper.GetCleanTableUri(requestUri), this.Http);
-
-                //get latest known timestamp for a reqeust
-                string timestamp = await GetLastTimestampForRequest(requestUri);
-                Uri stampedRequestUri;
-                if (timestamp != null)
-                {
-                    stampedRequestUri = new Uri(string.Format("{0}&version={1}", requestUri.OriginalString, Uri.EscapeDataString(timestamp)));
-                }
-                else
-                {
-                    stampedRequestUri = requestUri;
-                }
-
-                //send the timestamped request
-                HttpContent remoteResults = await base.Read(stampedRequestUri);
-                json = await ResponseHelper.GetResponseAsJObject(remoteResults);
+                //upload changes
+                await this.synchronizer.UploadChanges(UriHelper.GetCleanTableUri(requestUri), this.Http);
+                //download changes
+                await this.synchronizer.DownloadChanges(requestUri, this.Http);
             }
             else
             {
@@ -85,15 +70,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             using (await this.storage.OpenAsync())
             {
-                JToken newtimestamp;
-                if (json.TryGetValue("__version", out newtimestamp))
-                {
-                    await this.SetLastTimestampForRequest(requestUri, newtimestamp.ToString());
-                }
-
-                await this.storage.StoreData(tableName, ResponseHelper.GetResultsJArrayFromJson(json));
-                await this.storage.RemoveStoredData(tableName, ResponseHelper.GetDeletedJArrayFromJson(json));
-
                 //parse uri into separate query options
                 IQueryOptions uriQueryOptions = new UriQueryOptions(requestUri);
                 IQueryOptions queryOptions = new StaticQueryOptions()
@@ -149,45 +125,40 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
-            HttpContent response;
-            JArray dataForInsertion;
+            JToken result;
+            string rawContent = await content.ReadAsStringAsync();
+            JObject contentObject = JObject.Parse(rawContent);
 
             if (await network.IsConnectedToInternet())
             {
-                await this.synchronizer.Synchronize(UriHelper.GetCleanTableUri(requestUri), this.Http);
-
-                response = await base.Insert(requestUri, content);
-                JObject json = await ResponseHelper.GetResponseAsJObject(response);
-                dataForInsertion = ResponseHelper.GetResultsJArrayFromJson(json);
+                Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
+                await this.synchronizer.UploadChanges(tableUri, this.Http);
+                JObject json = await this.synchronizer.UploadInsert(contentObject, tableUri, this.Http);
+                //insert expects a single item so we return the first one
+                result = ResponseHelper.GetResultsJArrayFromJson(json).First;
             }
             else
             {
                 this.synchronizer.NotifyOfUnsynchronizedChange();
 
-                string rawContent = await content.ReadAsStringAsync();
-                response = new StringContent(rawContent);
-                JObject result = JObject.Parse(rawContent);
-                result["id"] = Guid.NewGuid().ToString();
+                contentObject["id"] = Guid.NewGuid().ToString();
                 //set status to inserted
-                result["status"] = (int)ItemStatus.Inserted;
-                //wrap the object in an array
-                dataForInsertion = new JArray(result);
+                contentObject["status"] = (int)ItemStatus.Inserted;
+
+                using (await this.storage.OpenAsync())
+                {
+                    await this.storage.StoreData(tableName, new JArray(contentObject));
+                }
+
+                contentObject.Remove("status");
+
+                result = contentObject;
             }
+            
+            Debug.WriteLine("Returning response:    {0}", result.ToString());
 
-            using (await this.storage.OpenAsync())
-            {
-                await this.storage.StoreData(tableName, dataForInsertion);
-            }
-
-            //insert expects a single item so we return the first one
-            JToken returnResult = dataForInsertion.First;
-
-            Debug.WriteLine("Returning response:    {0}", returnResult.ToString());
-
-            return new StringContent(returnResult.ToString());
+            return new StringContent(result.ToString(Formatting.None));
         }
-
-
 
         /// <summary>
         /// Handles cached changes.
@@ -214,40 +185,38 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
-            HttpContent response;
-            JArray dataForInsertion;
+            JToken result;
+            string rawContent = await content.ReadAsStringAsync();
+            JObject contentObject = JObject.Parse(rawContent);
 
             if (await network.IsConnectedToInternet())
             {
+                Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
                 //make sure we synchronize
-                await this.synchronizer.Synchronize(UriHelper.GetCleanTableUri(requestUri), this.Http);
-
-                response = await base.Update(requestUri, content);
-                JObject json = await ResponseHelper.GetResponseAsJObject(response);
-                dataForInsertion = ResponseHelper.GetResultsJArrayFromJson(json);
+                await this.synchronizer.UploadChanges(tableUri, this.Http);
+                JObject json = await this.synchronizer.UploadUpdate(contentObject, tableUri, this.Http);
+                //update expects a single item so we return the first one
+                result = ResponseHelper.GetResultsJArrayFromJson(json).First;
             }
             else
             {
                 this.synchronizer.NotifyOfUnsynchronizedChange();
+                //set status to changed
+                contentObject["status"] = (int)ItemStatus.Changed;
 
-                string rawContent = await content.ReadAsStringAsync();
-                response = new StringContent(rawContent);
-                JObject result = JObject.Parse(rawContent);
-                result["status"] = (int)ItemStatus.Changed;
-                dataForInsertion = new JArray(result);
+                using (await this.storage.OpenAsync())
+                {
+                    await this.storage.UpdateData(tableName, new JArray(contentObject));
+                }
+
+                contentObject.Remove("status");
+
+                result = contentObject;
             }
 
-            using (await this.storage.OpenAsync())
-            {
-                await this.storage.UpdateData(tableName, dataForInsertion);
-            }
+            Debug.WriteLine("Returning response:    {0}", result.ToString());
 
-            //insert expects a single item so we return the first one
-            JToken returnResult = dataForInsertion.First;
-
-            Debug.WriteLine("Returning response:    {0}", returnResult.ToString());
-
-            return new StringContent(returnResult.ToString());
+            return new StringContent(result.ToString(Formatting.None));
         }
 
         public override async Task<HttpContent> Delete(Uri requestUri)
@@ -262,35 +231,28 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
-            IEnumerable<string> idsToRemove;
-
             if (await network.IsConnectedToInternet())
             {
-                await this.synchronizer.Synchronize(UriHelper.GetCleanTableUri(requestUri), this.Http);
-
-                HttpContent remoteResults = await base.Delete(requestUri);
-                JObject json = await ResponseHelper.GetResponseAsJObject(remoteResults);
-                idsToRemove = ResponseHelper.GetDeletedJArrayFromJson(json);
+                Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
+                //make sure we synchronize
+                await this.synchronizer.UploadChanges(tableUri, this.Http);
+                JObject json = await this.synchronizer.UploadDelete(new JObject() { { "id", new JValue(id) } }, tableUri, this.Http);
             }
             else
             {
                 this.synchronizer.NotifyOfUnsynchronizedChange();
 
-                //if local item (-1) not known by server
+                //TODO: if local item is not known by server
                 // we can just remove it locally and the server will never know about its existence
-                idsToRemove = new string[0];
-            }
+                using (await this.storage.OpenAsync())
+                {
+                    //update status of current item 
+                    JArray arr = new JArray();
+                    arr.Add(new JObject() { { "id", new JValue(id) }, { "status", new JValue((int)ItemStatus.Deleted) } });
 
-            using (await this.storage.OpenAsync())
-            {
-                await this.storage.RemoveStoredData(tableName, idsToRemove);
-
-                //update status of current item 
-                JArray arr = new JArray();
-                arr.Add(new JObject() { { "id", new JValue(id) }, { "status", new JValue((int)ItemStatus.Deleted) } });
-
-                await this.storage.UpdateData(tableName, arr);
-            }
+                    await this.storage.UpdateData(tableName, arr);
+                }
+            }            
 
             Debug.WriteLine("Returning response:    {0}", string.Empty);
 
@@ -305,84 +267,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         public override bool ProvidesCacheForRequest(Uri requestUri)
         {
             return requestUri.OriginalString.Contains("/tables/") && areWeCachingThis(requestUri);
-        }
-
-        #region Timestamps
-
-        private Dictionary<string, Tuple<string, string>> timestamps;
-
-        private Task EnsureTimestampsLoaded()
-        {
-            if (timestamps == null)
-            {
-                return this.LoadTimestamps();
-            }
-            return Task.FromResult(0);
-        }
-
-        private async Task<bool> LoadTimestamps()
-        {
-            using (await this.storage.OpenAsync())
-            {
-                JArray knownUris = await this.storage.GetStoredData("timestamp_requests", new StaticQueryOptions());
-
-                timestamps = new Dictionary<string, Tuple<string, string>>();
-                foreach (var uri in knownUris)
-                {
-                    this.timestamps.Add(uri["requesturl"].ToString(), Tuple.Create(uri["id"].ToString(), uri["__version"].ToString()));
-                }
-            }
-            return true;
-        }
-
-        private async Task<string> GetLastTimestampForRequest(Uri requestUri)
-        {
-            Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
-
-            //make sure the timestamps are loaded
-            await this.timestampsLoaded;
-
-            Tuple<string, string> timestampTuple;
-            if (this.timestamps.TryGetValue(requestUri.OriginalString, out timestampTuple))
-            {
-                return timestampTuple.Item2;
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-        private async Task SetLastTimestampForRequest(Uri requestUri, string timestamp)
-        {
-            Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
-            Contract.Requires<InvalidOperationException>(this.timestamps != null, "Timestamps where not loaded. Make sure you called LoadTimestamps() before calling this method.");
-
-            Tuple<string, string> timestampTuple;
-            if (!this.timestamps.TryGetValue(requestUri.OriginalString, out timestampTuple))
-            {
-                //if not exists create new one
-                timestampTuple = Tuple.Create(Guid.NewGuid().ToString(), timestamp);
-            }
-            else
-            {
-                //if exists reuse guid key
-                timestampTuple = Tuple.Create(timestampTuple.Item1, timestamp);
-            }
-
-            JObject item = new JObject();
-            item.Add("id", timestampTuple.Item1);
-            // required column so provide default
-            item.Add("requesturl", requestUri.OriginalString);
-            item.Add("__version", timestampTuple.Item2);
-            //timestamps are local only so always unchanged
-            item.Add("status", (int)ItemStatus.Unchanged);
-            await this.storage.StoreData("timestamp_requests", new JArray(item));
-
-            //after successfull insert add locally
-            this.timestamps[requestUri.OriginalString] = timestampTuple;
-        }
-
-        #endregion
+        }        
     }
 }
