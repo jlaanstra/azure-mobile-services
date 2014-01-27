@@ -151,7 +151,7 @@
     <Compile Include="Helpers\ResponseHelper.cs" />
     <Compile Include="Storage\IStructuredStorage.cs" />
     <Compile Include="Synchronize\ISynchronizer.cs" />
-    <Compile Include="Synchronize\Synchronizer.cs" />
+    <Compile Include="Synchronize\TimestampSynchronizer.cs" />
     <Compile Include="ToggableNetworkInformation.cs" />
   </ItemGroup>
   <ItemGroup>
