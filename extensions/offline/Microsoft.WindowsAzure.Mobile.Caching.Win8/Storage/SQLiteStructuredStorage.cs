@@ -210,8 +210,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             EnsureDatabaseThread();
 
-            Exception exception = null;
-
             try
             {
                 //check if database exists
