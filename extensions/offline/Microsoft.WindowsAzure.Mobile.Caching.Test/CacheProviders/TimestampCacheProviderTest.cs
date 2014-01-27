@@ -26,7 +26,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
             this.network.Setup(ini => ini.IsConnectedToInternet()).Returns(() => Task.FromResult(false));
             this.http = new Mock<IHttp>();
             this.synchronizer = new Mock<ISynchronizer>();
-            this.synchronizer.Setup(s => s.Synchronize(It.IsAny<Uri>(), It.IsAny<IHttp>())).Returns(Task.FromResult(0));
+            this.synchronizer.Setup(s => s.UploadChanges(It.IsAny<Uri>(), It.IsAny<IHttp>())).Returns(Task.FromResult(0));
         }
 
         [TestMethod]
