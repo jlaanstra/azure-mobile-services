@@ -17,9 +17,7 @@ function read(query, user, request) {
             // get latest version
             mssql.query("SELECT @@DBTS", {
                 success: function (result) {
-                    console.log(result);
                     response.__version = result[0].Column0.toString('base64');
-                    console.log(result[0].Column0.toString('base64'));
 
                     var deleted = [];
                     var nondeleted = [];

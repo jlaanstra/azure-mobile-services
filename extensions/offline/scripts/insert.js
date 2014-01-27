@@ -3,14 +3,14 @@
 function insert(item, user, request) {
 
     //new items cannot have a timestamp
-    if(item.__version)
+    if (item.__version !== undefined)
     {
         request.respond(statusCodes.BAD_REQUEST,
         "insert operation cannot have __version");
         return;
     }
     //item cannot set isDeleted
-    if(item.isDeleted)
+    if (item.isDeleted !== undefined)
     {
         request.respond(statusCodes.BAD_REQUEST,
         "item cannot set isDeleted, isDeleted is a reserved column name");

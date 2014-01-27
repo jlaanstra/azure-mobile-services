@@ -17,10 +17,6 @@ function update(item, user, request) {
         return;
     }
     
-    var tableName = tables.current.getTableName();
-    
-    var sql = "SELECT * FROM " + tableName + " WHERE id = ?";
-    
     //updating happens here
     var processResult = function(result)
     {
