@@ -66,7 +66,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         [TestMethod]
         public async Task SynchronizeInsertShouldRemoveIdAndTimestamp()
         {
-            ISynchronizer synchronizer = new Synchronizer(this.storage.Object);
+            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object);
 
             #region Setup
             HttpRequestMessage req = null;
@@ -92,7 +92,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
                 });
             #endregion
 
-            await synchronizer.Synchronize(new Uri("http://localhost/tables/table/"), this.http.Object);
+            await synchronizer.UploadChanges(new Uri("http://localhost/tables/table/"), this.http.Object);
 
             Assert.IsNotNull(req);
             IDictionary<string, JToken> obj = JObject.Parse(sendjson);
@@ -106,7 +106,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         [TestMethod]
         public async Task SynchronizeDeleteShouldAddIdToUrlAndSendEmptyBody()
         {
-            ISynchronizer synchronizer = new Synchronizer(this.storage.Object);
+            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object);
 
             #region Setup
             HttpRequestMessage req = null;
@@ -128,7 +128,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 
             #endregion
 
-            await synchronizer.Synchronize(new Uri("http://localhost/tables/table/"), this.http.Object);
+            await synchronizer.UploadChanges(new Uri("http://localhost/tables/table/"), this.http.Object);
 
             Assert.IsNotNull(req);
             HttpContent sendContent = req.Content;
@@ -141,7 +141,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         [TestMethod]
         public async Task SynchronizeUpdateShouldKeepIdAndAddToUrl()
         {
-            ISynchronizer synchronizer = new Synchronizer(this.storage.Object);
+            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object);
 
             #region Setup
             HttpRequestMessage req = null;
@@ -167,7 +167,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
                 });
             #endregion
 
-            await synchronizer.Synchronize(new Uri("http://localhost/tables/table/"), this.http.Object);
+            await synchronizer.UploadChanges(new Uri("http://localhost/tables/table/"), this.http.Object);
 
             Assert.IsNotNull(req);
             IDictionary<string, JToken> obj = JObject.Parse(sendjson);
