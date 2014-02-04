@@ -58,7 +58,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SQLiteWinRTPhone", "sqlwinr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntegrationApp", "test\IntegrationApp\IntegrationApp.csproj", "{A849540E-666C-483D-9598-AF5DA85FFE45}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.WindowsAzure.Mobile.Caching.Net45", "src\Microsoft.WindowsAzure.Mobile.Cahing.Net45\Microsoft.WindowsAzure.Mobile.Caching.Net45.csproj", "{7E834E2D-C027-4D78-80C7-DB59F0493CD2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.WindowsAzure.Mobile.Caching.Net45", "Microsoft.WindowsAzure.Mobile.Caching.Net45\Microsoft.WindowsAzure.Mobile.Caching.Net45.csproj", "{7E834E2D-C027-4D78-80C7-DB59F0493CD2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
