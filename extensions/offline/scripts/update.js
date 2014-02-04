@@ -80,14 +80,3 @@ function update(item, user, request) {
     });    
 
 }
-
-//handle conflicts
-function resolveConflict(currentItem, newItem, resolvedCallback)
-{
-    if(currentItem.isDeleted)
-    {
-        resolvedCallback(currentItem);
-    }
-    //for now last write wins in other cases
-    resolvedCallback(newItem);
-}
