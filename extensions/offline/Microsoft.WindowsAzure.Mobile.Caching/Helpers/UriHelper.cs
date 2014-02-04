@@ -13,7 +13,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
 
-            string path = requestUri.AbsolutePath;
+            string path = requestUri.AbsolutePath.Trim('/');
             int lastSlash = path.LastIndexOf('/');
             return path.Substring(lastSlash + 1);
         }
@@ -22,8 +22,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
 
-            string tables = "/tables/";
-            string path = requestUri.AbsolutePath;
+            string tables = "tables/";
+            string path = requestUri.AbsolutePath.Trim('/');
             int startIndex = path.IndexOf(tables) + tables.Length;
             int endIndex = path.IndexOf('/', startIndex);
             if (endIndex == -1)
@@ -37,16 +37,15 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
 
-            string tables = "/tables/";
-            string url = requestUri.OriginalString;
-            //remove query
-            url = url.Split('?').First();
-            int endIndex = url.IndexOf('/', url.IndexOf(tables) + tables.Length);
+            string tables = "tables/";
+            string path = requestUri.AbsolutePath.Trim('/');
+            int startIndex = path.IndexOf(tables) + tables.Length;
+            int endIndex = path.IndexOf('/', startIndex);
             if (endIndex == -1)
             {
-                endIndex = url.Length;
+                endIndex = path.Length;
             }
-            return new Uri(url.Substring(0, endIndex));
+            return new Uri(string.Format("{0}://{1}/{2}", requestUri.Scheme, requestUri.Host, path.Substring(0, endIndex)));
         }
     }
 }
