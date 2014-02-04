@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -21,6 +22,17 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// </summary>
         /// <param name="storage">The storage.</param>
         private bool hasLocalChanges = true;
+        
+        public event EventHandler<Conflict> Conflict;
+
+        protected virtual void OnConflict(Conflict conflict)
+        {
+            var handler = this.Conflict;
+            if(handler != null)
+            {
+                handler(this, conflict);
+            }
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TimestampSynchronizer"/> class.
@@ -157,16 +169,32 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             HttpRequestMessage req = http.CreateRequest(new HttpMethod("PATCH"), updateUri, new Dictionary<string, string>() { { "If-Match", string.Format("\"{0}\"", version) } });
             req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
 
-            JObject response = await http.GetJsonAsync(req);
-            JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
-            IEnumerable<string> deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
+            try
+            {
+                JObject response = await http.GetJsonAsync(req);
+                JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
+                IEnumerable<string> deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
 
-            string tableName = UriHelper.GetTableNameFromUri(tableUri);
+                string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
-            await this.storage.StoreData(tableName, results);
-            await this.storage.RemoveStoredData(tableName, deleted);
+                await this.storage.StoreData(tableName, results);
+                await this.storage.RemoveStoredData(tableName, deleted);
 
-            return response;
+                return response;
+            }
+            catch(HttpStatusCodeException e)
+            {
+                if(e.StatusCode == HttpStatusCode.Conflict)
+                {
+                    Conflict c = JsonConvert.DeserializeObject<Conflict>(e.Message);
+                    if(c != null)
+                    {
+                        this.OnConflict(c);
+                        return ResponseHelper.CreateSyncResponseWithItems(c.CurrentItem, null);
+                    }
+                }
+                return ResponseHelper.CreateSyncResponseWithItems(null, null);
+            }
         }
 
         public async Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http)
@@ -175,16 +203,32 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             HttpRequestMessage req = http.CreateRequest(HttpMethod.Delete, deleteUri);
 
-            JObject response = await http.GetJsonAsync(req);
-            JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
-            IEnumerable<string> deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
+            try
+            {
+                JObject response = await http.GetJsonAsync(req);
+                JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
+                IEnumerable<string> deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
 
-            string tableName = UriHelper.GetTableNameFromUri(tableUri);
+                string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
-            await this.storage.StoreData(tableName, results);
-            await this.storage.RemoveStoredData(tableName, deleted);
+                await this.storage.StoreData(tableName, results);
+                await this.storage.RemoveStoredData(tableName, deleted);
 
-            return response;
+                return response;
+            }
+            catch (HttpStatusCodeException e)
+            {
+                if (e.StatusCode == HttpStatusCode.Conflict)
+                {
+                    Conflict c = JsonConvert.DeserializeObject<Conflict>(e.Message);
+                    if (c != null)
+                    {
+                        this.OnConflict(c);
+                        return ResponseHelper.CreateSyncResponseWithItems(null, c.CurrentItem["id"]);
+                    }
+                }
+                return ResponseHelper.CreateSyncResponseWithItems(null, null);
+            }
         }
 
         public void NotifyOfUnsynchronizedChange()
