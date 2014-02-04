@@ -115,8 +115,10 @@
     <Compile Include="Exceptions\HttpStatusCodeException.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />
     <Compile Include="Extensions\JObjectExtensions.cs" />
+    <Compile Include="Extensions\SQLiteConnectionExtensions.cs" />
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Handler\CacheHandler.cs" />
+    <Compile Include="Helpers\ColumnTypeHelper.cs" />
     <Compile Include="Helpers\UriHelper.cs" />
     <Compile Include="Http\Http.cs" />
     <Compile Include="CacheProviders\ICacheProvider.cs" />
@@ -129,6 +131,7 @@
     <Compile Include="OData\InlineCountQuery.cs" />
     <Compile Include="OData\IQueryOption.cs" />
     <Compile Include="OData\IQueryOptions.cs" />
+    <Compile Include="OData\SQLiteExpressionVisitor.cs" />
     <Compile Include="OData\StaticQueryOptions.cs" />
     <Compile Include="OData\UriQueryOptions.cs" />
     <Compile Include="OData\RawQueryOptions.cs" />
@@ -150,6 +153,7 @@
     </Compile>
     <Compile Include="Helpers\ResponseHelper.cs" />
     <Compile Include="Storage\IStructuredStorage.cs" />
+    <Compile Include="Storage\SQLiteStructuredStorage.cs" />
     <Compile Include="Synchronize\ISynchronizer.cs" />
     <Compile Include="Synchronize\TimestampSynchronizer.cs" />
     <Compile Include="NetworkInformation\ToggableNetworkInformation.cs" />
@@ -171,6 +175,9 @@
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\packages\Newtonsoft.Json.6.0.1\lib\portable-net45+wp80+win8\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCL">
+      <HintPath>..\packages\SQLitePCL.3.8.2.0\lib\netcore45\SQLitePCL.dll</HintPath>
     </Reference>
     <Reference Include="System.Net.Http">
       <HintPath>..\packages\Microsoft.Net.Http.2.2.18\lib\portable-net40+sl4+win8+wp71\System.Net.Http.dll</HintPath>

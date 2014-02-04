@@ -26,7 +26,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         public void Setup()
         {
             this.storage = new Mock<IStructuredStorage>();
-            this.storage.Setup(iss => iss.OpenAsync()).Returns(() => Task.FromResult(Disposable.Empty));
+            this.storage.Setup(iss => iss.Open()).Returns(() => Task.FromResult(Disposable.Empty));
             this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.IsAny<IQueryOptions>()))
                 .Returns(() =>
                 {

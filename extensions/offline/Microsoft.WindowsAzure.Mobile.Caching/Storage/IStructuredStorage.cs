@@ -9,7 +9,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public interface IStructuredStorage
     {
-        Task<IDisposable> OpenAsync();
+        Task<IDisposable> Open();
 
         Task<JArray> GetStoredData(string tableName, IQueryOptions query);
 

@@ -68,7 +68,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 }
             }
 
-            using (await this.storage.OpenAsync())
+            using (await this.storage.Open())
             {
                 //parse uri into separate query options
                 IQueryOptions uriQueryOptions = new UriQueryOptions(requestUri);
@@ -145,7 +145,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 //set status to inserted
                 contentObject["status"] = (int)ItemStatus.Inserted;
 
-                using (await this.storage.OpenAsync())
+                using (await this.storage.Open())
                 {
                     await this.storage.StoreData(tableName, new JArray(contentObject));
                 }
@@ -204,7 +204,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 //set status to changed
                 contentObject["status"] = (int)ItemStatus.Changed;
 
-                using (await this.storage.OpenAsync())
+                using (await this.storage.Open())
                 {
                     await this.storage.UpdateData(tableName, new JArray(contentObject));
                 }
@@ -244,7 +244,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                 //TODO: if local item is not known by server
                 // we can just remove it locally and the server will never know about its existence
-                using (await this.storage.OpenAsync())
+                using (await this.storage.Open())
                 {
                     //update status of current item 
                     JArray arr = new JArray();
