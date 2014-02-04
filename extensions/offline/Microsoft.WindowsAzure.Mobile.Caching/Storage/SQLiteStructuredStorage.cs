@@ -1,0 +1,254 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+using System.Diagnostics.Contracts;
+
+using System.Runtime.InteropServices;
+using SQLitePCL;
+
+namespace Microsoft.WindowsAzure.MobileServices.Caching
+{
+    public class SQLiteStructuredStorage : IStructuredStorage
+    {
+        private string dbFile;
+        private SQLiteConnection db;
+#if DEBUG
+        private int databaseThreadId;
+#endif
+        private static Task completed = Task.FromResult(0);
+
+        private IDictionary<string, Column> defaultColumns = new Dictionary<string, Column>()
+        {
+            { "id", new Column("id", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), false, null, 1, true) }, // globally unique
+            { "__version", new Column("__version", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), true, null, 0, true) }, // version of local item
+            { "status", new Column("status", ColumnTypeHelper.GetColumnTypeForClrType(typeof(int)), false, null, 0, true) }, // status: unchanged:0 inserted:1 changed:2 deleted:3
+        };
+
+        public SQLiteStructuredStorage(string name)
+        {
+            dbFile = string.Format("{0}.sqlite", name);
+        }
+
+        public Task<IDisposable> Open()
+        {
+            Debug.WriteLine("Opening database: {0}", this.dbFile);
+            db = new SQLiteConnection(dbFile);
+
+#if DEBUG
+            this.databaseThreadId = Environment.CurrentManagedThreadId;
+#endif
+            return Task.FromResult<IDisposable>(new Disposable(() =>
+            {
+                if (db != null)
+                {
+                    db.Dispose();
+                    db = null;
+                }
+            }));
+        }
+
+        /// <summary>
+        /// Gets the stored data.
+        /// This method should not alter the database in any way.
+        /// </summary>
+        /// <param name="tableName">Name of the table.</param>
+        /// <param name="query">The query.</param>
+        /// <returns></returns>
+        /// <exception cref="System.Exception"></exception>
+        public Task<JArray> GetStoredData(string tableName, IQueryOptions query)
+        {
+            Debug.WriteLine("Retrieving data for table {0}, query: {1}", tableName, query.ToString());
+
+            EnsureDatabaseThread();
+
+            try
+            {
+                //check if database exists
+                if (!db.DoesTableExist(tableName))
+                {
+                    Debug.WriteLine("Table doesn't exist: {0}", tableName);
+                    return Task.FromResult(new JArray());
+                }
+
+                Debug.WriteLine("Table exists: {0}", tableName);
+                Debug.WriteLine("Querying table structure for table: {0}", tableName);
+
+                IDictionary<string, Column> columns = db.GetColumnsForTable(tableName);
+
+                Debug.WriteLine("Table {0} has columns: {1}", tableName, string.Join<Column>("\n", columns.Values));
+
+                SQLiteExpressionVisitor visitor = new SQLiteExpressionVisitor();
+                visitor.VisitQueryOptions(query);
+
+                var sqlStatement = string.Format(visitor.SqlStatement, tableName);
+
+                Debug.WriteLine("Executing sql: {0}", sqlStatement);
+
+                return Task.FromResult(db.Query(sqlStatement, columns));
+            }
+            catch (SQLiteException ex)
+            {
+                throw new Exception(string.Format("Error occurred during interaction with the local database: {0}", ex.Message));
+            }
+        }
+
+        public Task StoreData(string tableName, JArray data)
+        {
+            Debug.WriteLine("Storing data for table {0}", tableName);
+
+            if (!data.Any())
+            {
+                return completed;
+            }
+
+            EnsureDatabaseThread();
+
+            // the actual columns for the item
+            IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);
+            this.EnsureSchemaForTable(tableName, db, columns);
+
+            try
+            {
+                Debug.WriteLine("Inserting...");
+
+                foreach (JObject item in data)
+                {
+                    db.InsertIntoTable(tableName, columns, item);
+                }
+                return completed;
+            }
+            catch (SQLiteException ex)
+            {
+                throw new Exception(string.Format("Error occurred during interaction with the local database: {0}", ex.Message));
+            }
+        }
+
+        public Task UpdateData(string tableName, JArray data)
+        {
+            Debug.WriteLine("Update table {0}", tableName);
+
+            if (!data.Any())
+            {
+                return completed;
+            }
+
+            EnsureDatabaseThread();
+
+            // the actual columns for the item
+            IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);
+            this.EnsureSchemaForTable(tableName, db, columns);
+
+            try
+            {
+                Debug.WriteLine("Updating...");
+
+                foreach (JObject item in data)
+                {
+                    db.UpdateInTable(tableName, columns, item);
+                }
+                return completed;
+            }
+            catch (SQLiteException ex)
+            {
+                throw new Exception(string.Format("Error occurred during interaction with the local database: {0}", ex.Message));
+            }
+        }
+
+        public Task RemoveStoredData(string tableName, IEnumerable<string> ids)
+        {
+            Debug.WriteLine(string.Format("Removing data for table {0}, ids: {1}", tableName, string.Join(",", ids)));
+
+            if (!ids.Any())
+            {
+                return completed;
+            }
+
+            EnsureDatabaseThread();
+
+            try
+            {
+                Debug.WriteLine("Deleting...");
+
+                db.DeleteFromTable(tableName, ids);
+                return completed;
+            }
+            catch (SQLiteException ex)
+            {
+                throw new Exception(string.Format("Error occurred during interaction with the local database: {0}", ex.Message));
+            }
+        }
+
+        private IDictionary<string, Column> GetColumnsFromItem(IDictionary<string, JToken> item)
+        {
+            Contract.Requires(item != null, "item cannot be null");
+
+            IDictionary<string, Column> cols = new Dictionary<string, Column>(defaultColumns);
+            foreach (var kvp in item.Where(prop => !defaultColumns.ContainsKey(prop.Key)))
+            {
+                cols.Add(kvp.Key, new Column(kvp.Key, ColumnTypeHelper.GetColumnTypeForClrType(((JValue)kvp.Value).Value.GetType()), true));
+            }
+
+            return cols;
+        }
+
+        private IDictionary<string, Column> DetermineNewColumns(IDictionary<string, Column> table, IDictionary<string, Column> item)
+        {
+            //all columns in item with name that do not exist in table 
+            return item.Where(c => !table.ContainsKey(c.Key)).ToDictionary(x => x.Key, x => x.Value);
+        }
+
+        private void EnsureSchemaForTable(string tableName, SQLiteConnection db, IDictionary<string, Column> columns)
+        {
+            EnsureDatabaseThread();
+
+            try
+            {
+                //check if database exists
+                if (!db.DoesTableExist(tableName))
+                {
+                    Debug.WriteLine("Table doesn't exist: {0}", tableName);
+
+                    db.CreateTable(tableName, columns);
+
+                    Debug.WriteLine("Table {0} created with columns {1}.", tableName, string.Join<Column>("\n", columns.Values));
+                    Debug.WriteLine("Creating index for table {0} on column 'id'", tableName);
+
+                    db.CreateIndex(tableName, "id");
+                }
+                else
+                {
+                    Debug.WriteLine("Table exists: {0}", tableName);
+                    Debug.WriteLine("Querying table structure for table: {0}", tableName);
+
+                    IDictionary<string, Column> tableColumns = db.GetColumnsForTable(tableName);
+
+                    Debug.WriteLine("Table {0} has columns: {1}", tableName, string.Join<Column>("\n", tableColumns.Values));
+
+                    IDictionary<string, Column> newColumns = this.DetermineNewColumns(tableColumns, columns);
+                    foreach (var col in newColumns)
+                    {
+                        db.AddColumnForTable(tableName, col.Value);
+                    }
+                }
+            }
+            catch (SQLiteException ex)
+            {
+                throw new Exception(string.Format("Error occurred during interaction with the local database: {0}", ex.Message));
+            }
+        }
+
+        [Conditional("Debug")]
+        private void EnsureDatabaseThread()
+        {
+            if (this.databaseThreadId != Environment.CurrentManagedThreadId)
+            {
+                throw new InvalidOperationException(string.Format("Database accessed from thread with id {0} while id {1} was expected.", Environment.CurrentManagedThreadId, this.databaseThreadId));
+            }
+        }
+    }
+}

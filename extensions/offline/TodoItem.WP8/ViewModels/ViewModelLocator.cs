@@ -40,7 +40,7 @@ namespace Todo.ViewModels
 
             SimpleIoc.Default.Register<ICacheProvider, TimestampCacheProvider>();
 
-            SimpleIoc.Default.Register<IStructuredStorage, SQLiteCacheStorage>();
+            SimpleIoc.Default.Register<IStructuredStorage, SQLiteStructuredStorage>();
 
             SimpleIoc.Default.Register<NetworkInformationDelegate>(() =>
             {

@@ -69,7 +69,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             // get the tablename out of the uri
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
-            using (await this.storage.OpenAsync())
+            using (await this.storage.Open())
             {
                 JToken newtimestamp;
                 if (json.TryGetValue("__version", out newtimestamp))
@@ -102,7 +102,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
             // all communication with the database should be on the same thread
-            using (await this.storage.OpenAsync())
+            using (await this.storage.Open())
             {
                 //sent all local changes 
                 JArray localChanges = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery("status ne 0") });
@@ -251,7 +251,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         private async Task<bool> LoadTimestamps()
         {
-            using (await this.storage.OpenAsync())
+            using (await this.storage.Open())
             {
                 JArray knownUris = await this.storage.GetStoredData("timestamp_requests", new StaticQueryOptions());
 

@@ -21,7 +21,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
         public void Setup()
         {
             this.storage = new Mock<IStructuredStorage>();
-            this.storage.Setup(iss => iss.OpenAsync()).Returns(() => Task.FromResult(Disposable.Empty));
+            this.storage.Setup(iss => iss.Open()).Returns(() => Task.FromResult(Disposable.Empty));
             this.network = new Mock<INetworkInformation>();
             this.network.Setup(ini => ini.IsConnectedToInternet()).Returns(() => Task.FromResult(false));
             this.http = new Mock<IHttp>();
@@ -90,7 +90,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
     {
         public JArray StoredArray { get; set; }
 
-        public Task<IDisposable> OpenAsync()
+        public Task<IDisposable> Open()
         {
             return Task.FromResult(Disposable.Empty);
         }
