@@ -9,6 +9,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public interface ISynchronizer
     {
+        event EventHandler<Conflict> Conflict;
         void NotifyOfUnsynchronizedChange();
 
         Task DownloadChanges(Uri requestUri, IHttp http);
