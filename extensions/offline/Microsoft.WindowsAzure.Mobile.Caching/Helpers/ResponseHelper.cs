@@ -104,5 +104,15 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             return Task.FromResult<HttpContent>(new StringContent(string.Empty));
         }
+
+        public static JObject CreateSyncResponseWithItems(JToken result, JToken deleted)
+        {
+            JObject resp = new JObject();
+            resp.Add("__version", new JValue(string.Empty));
+            resp.Add("results", result != null ? new JArray(result) : new JArray());
+            resp.Add("deleted", deleted != null ? new JArray(deleted) : new JArray());
+
+            return resp;
+        }
     }
 }
