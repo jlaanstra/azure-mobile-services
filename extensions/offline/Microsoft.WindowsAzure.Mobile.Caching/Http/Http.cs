@@ -37,12 +37,17 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         public HttpRequestMessage CreateRequest(HttpMethod method, Uri uri, IDictionary<string, string> headers = null)
         {
             HttpRequestMessage req = new HttpRequestMessage(method, uri);
-            foreach (var header in this.OriginalRequest.Headers)
+            if (this.OriginalRequest != null)
             {
-                if (header.Key.StartsWith("X-ZUMO"))
+                foreach (var header in this.OriginalRequest.Headers)
                 {
-                    req.Headers.Add(header.Key, header.Value);
+                    if (header.Key.StartsWith("X-ZUMO"))
+                    {
+                        req.Headers.Add(header.Key, header.Value);
+                    }
                 }
+
+                req.Version = this.OriginalRequest.Version;
             }
             if (headers != null)
             {
@@ -51,7 +56,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     req.Headers.Add(header.Key, header.Value);
                 }
             }
-            req.Version = this.OriginalRequest.Version;
             return req;
         }
     }
