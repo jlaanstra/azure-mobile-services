@@ -10,7 +10,7 @@ using Newtonsoft.Json.Linq;
 namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 {
     [TestClass]
-    public class SynchronizerTest
+    public class TimestampSynchronizerTest
     {
         private Mock<IStructuredStorage> storage;
         private Mock<IHttp> http;
@@ -177,6 +177,58 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             Assert.IsFalse(obj.ContainsKey("__version"));
             Assert.AreEqual(new HttpMethod("PATCH"), req.Method);
             Assert.IsTrue(req.RequestUri.OriginalString.EndsWith("B1A60844-236A-43EA-851F-7DCD7D5755FA"));
+        }
+
+        [TestMethod]
+        public async Task DownloadChangesShouldLoadTimestampsWhenOnline()
+        {
+            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object);
+            string url = "http://localhost/tables/table/";
+            string timestamp = "00000000";
+
+            #region Setup
+
+            HttpResponseMessage response = new HttpResponseMessage();
+            response.Content = new StringContent(
+                @"{
+                    ""results"": [],
+                    ""deleted"": [],
+                    ""__version"": ""00000001""
+                }");
+
+            this.storage.Setup(iss => iss.GetStoredData(It.Is<string>(str => str.Equals("timestamp_requests")), It.IsAny<IQueryOptions>()))
+                .Returns(() =>
+                {
+                    return Task.FromResult(new JArray(JObject.Parse(string.Format(
+                        //escape here
+                            @"{{
+                                ""requesturl"": ""{0}"",
+                                ""id"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
+                                ""__version"": ""{1}""
+                            }}"
+                        , url, timestamp))));
+                });
+            this.storage.Setup(iss => iss.StoreData(It.IsAny<string>(), It.IsAny<JArray>()))
+                .Returns(() =>
+                {
+                    return Task.FromResult(0);
+                });
+            this.storage.Setup(iss => iss.RemoveStoredData(It.IsAny<string>(), It.IsAny<IEnumerable<string>>()))
+                .Returns(() =>
+                {
+                    return Task.FromResult(0);
+                });
+            HttpRequestMessage request = new HttpRequestMessage();
+            request.Method = HttpMethod.Get;
+            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.SetupGet(h => h.OriginalRequest).Returns(request);
+
+            #endregion
+
+            await synchronizer.DownloadChanges(new Uri(url), this.http.Object);
+
+            Assert.AreEqual(HttpMethod.Get, request.Method);
+            Assert.AreEqual(string.Format("{0}&version={1}", url, Uri.EscapeDataString(timestamp)), request.RequestUri.OriginalString);
         }
     }
 }

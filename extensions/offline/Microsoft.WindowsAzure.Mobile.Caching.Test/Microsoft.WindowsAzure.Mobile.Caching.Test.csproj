@@ -45,11 +45,13 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Microsoft.Bcl.Async.1.0.165\lib\net45\Microsoft.Threading.Tasks.Extensions.dll</HintPath>
     </Reference>
-    <Reference Include="Moq">
-      <HintPath>..\packages\Moq.4.1.1311.0615\lib\net40\Moq.dll</HintPath>
+    <Reference Include="Moq, Version=4.2.1312.1622, Culture=neutral, PublicKeyToken=69f491c39445e920, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Moq.4.2.1312.1622\lib\net40\Moq.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.5.0.8\lib\net45\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Newtonsoft.Json.6.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Net" />
@@ -80,9 +82,14 @@
     <Compile Include="CacheProviders\DisabledCacheProviderTest.cs" />
     <Compile Include="CacheProviders\MemoryCacheProviderTest.cs" />
     <Compile Include="CacheProviders\TimestampCacheProviderTest.cs" />
+    <Compile Include="Extensions\JObjectExtensionsTest.cs" />
+    <Compile Include="Handler\CacheHandlerTest.cs" />
+    <Compile Include="Helpers\ResponseHelperTest.cs" />
+    <Compile Include="Helpers\UriHelperTest.cs" />
+    <Compile Include="Http\HttpTest.cs" />
     <Compile Include="OData\Parser\ODataFilterParserTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Synchronizer\SynchronizerTest.cs" />
+    <Compile Include="Synchronizer\TimestampSynchronizerTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
