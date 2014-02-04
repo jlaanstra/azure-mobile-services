@@ -27,77 +27,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
             this.http = new Mock<IHttp>();
             this.synchronizer = new Mock<ISynchronizer>();
             this.synchronizer.Setup(s => s.UploadChanges(It.IsAny<Uri>(), It.IsAny<IHttp>())).Returns(Task.FromResult(0));
-        }
-
-        [TestMethod]
-        public async Task ReadShouldLoadTimestampsWhenOnline()
-        {
-            ICacheProvider provider = new TimestampCacheProvider(this.storage.Object, this.network.Object, this.synchronizer.Object, null);
-            string url = "http://localhost/tables/table/";
-            string timestamp = "00000000";
-
-            #region Setup
-
-            HttpResponseMessage response = new HttpResponseMessage();
-            response.Content = new StringContent(
-                @"{
-                    ""results"": [],
-                    ""deleted"": [],
-                    ""__version"": ""00000001""
-                }");
-
-            this.network.Setup(ini => ini.IsConnectedToInternet()).Returns(() => Task.FromResult(true));
-            this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.IsAny<IQueryOptions>()))
-               .Returns(() =>
-               {
-                   return Task.FromResult(new JArray());
-               });
-            this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.Is<IQueryOptions>(iqo => iqo.Filter != null && iqo.Filter.RawValue.Equals("status ne 0"))))
-                .Returns(() =>
-                {
-                    return Task.FromResult(new JArray());
-                });
-            this.storage.Setup(iss => iss.GetStoredData(It.Is<string>(str => str.Equals("timestamp_requests")), It.IsAny<IQueryOptions>()))
-                .Returns(() =>
-                {
-                    return Task.FromResult(new JArray(JObject.Parse(string.Format(
-                        //escape here
-                            @"{{
-                                ""requesturl"": ""{0}"",
-                                ""id"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
-                                ""__version"": ""{1}""
-                            }}"
-                        , url, timestamp))));
-                });
-            this.storage.Setup(iss => iss.StoreData(It.IsAny<string>(), It.IsAny<JArray>()))
-                .Returns(() =>
-                {
-                    return Task.FromResult(0);
-                });
-            this.storage.Setup(iss => iss.RemoveStoredData(It.IsAny<string>(), It.IsAny<IEnumerable<string>>()))
-                .Returns(() =>
-                {
-                    return Task.FromResult(0);
-                });
-            HttpRequestMessage request = new HttpRequestMessage();
-            request.Method = HttpMethod.Get;
-            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
-            this.http.SetupGet(h => h.OriginalRequest).Returns(request);
-
-            provider.Http = this.http.Object;
-
-            #endregion
-
-            HttpContent content = await provider.Read(new Uri(url));
-
-            Assert.IsNotNull(content);
-            IDictionary<string, JToken> obj = JObject.Parse(await content.ReadAsStringAsync());
-
-            Assert.IsTrue(obj.ContainsKey("results"));
-            Assert.IsNotNull(obj["results"]);
-            Assert.AreEqual(HttpMethod.Get, request.Method);
-            Assert.AreEqual(string.Format("{0}&timestamp={1}", url, Uri.EscapeDataString(timestamp)), request.RequestUri.OriginalString);
-        }
+        }        
 
         [TestMethod]
         public async Task ReadShouldPassResultsAndRemoveEverythingElse()
@@ -113,21 +43,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
             #region Setup
 
             this.network.Setup(ini => ini.IsConnectedToInternet()).Returns(() => Task.FromResult(true));
-            this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.IsAny<IQueryOptions>()))
-               .Returns(() =>
-               {
-                   return Task.FromResult(new JArray());
-               });
-            this.storage.Setup(iss => iss.StoreData(It.IsAny<string>(), It.IsAny<JArray>()))
-                .Returns(() =>
-                {
-                    return Task.FromResult(0);
-                });
-            this.storage.Setup(iss => iss.RemoveStoredData(It.IsAny<string>(), It.IsAny<IEnumerable<string>>()))
-                .Returns(() =>
-                {
-                    return Task.FromResult(0);
-                });
+
+            this.synchronizer.Setup(s => s.DownloadChanges(It.Is<Uri>(u => u.OriginalString.Equals(url)), It.Is<IHttp>(h => h == this.http.Object))).Returns(Task.FromResult(0));
+            this.synchronizer.Setup(s => s.UploadChanges(It.Is<Uri>(u => u.OriginalString.Equals(url)), It.Is<IHttp>(h => h == this.http.Object))).Returns(Task.FromResult(0));
+            
             this.storage.Setup(iss => iss.GetStoredData(It.Is<string>(str => str.Equals("table")), It.IsAny<IQueryOptions>()))
                .Returns(() =>
                {
@@ -140,8 +59,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
                     ""deleted"": [ ""B1A60844-236A-43EA-851F-7DCD7D5755FA"" ],
                     ""__version"": ""00000001""
                 }}", jsonObject));
-            HttpRequestMessage request = new HttpRequestMessage();
-            request.Method = HttpMethod.Get;
+            HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url);
             this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
