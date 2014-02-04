@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
+    /// <summary>
+    /// Based on http://odata.codeplex.com/SourceControl/latest#ODataLib/OData/Dev10/Microsoft/Data/OData/Query/ExpressionLexer.cs and other classes from the project.
+    /// </summary>
     public class ODataParser
     {
         public static ODataExpression ParseSkip(string skip)
