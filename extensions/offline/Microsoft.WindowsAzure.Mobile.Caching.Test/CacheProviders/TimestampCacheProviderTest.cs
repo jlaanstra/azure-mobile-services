@@ -63,11 +63,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
             this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
-            provider.Http = this.http.Object;
-
             #endregion
 
-            HttpContent content = await provider.Read(new Uri(url));
+            HttpContent content = await provider.Read(new Uri(url),this.http.Object);
 
             IDictionary<string, JToken> obj = JObject.Parse(await content.ReadAsStringAsync());
 

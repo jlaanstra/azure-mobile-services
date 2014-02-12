@@ -11,14 +11,12 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
     {
         bool ProvidesCacheForRequest(Uri requestUri);
 
-        Task<HttpContent> Read(Uri requestUri);
+        Task<HttpContent> Read(Uri requestUri, IHttp http);
 
-        Task<HttpContent> Insert(Uri requestUri, HttpContent content);
+        Task<HttpContent> Insert(Uri requestUri, HttpContent content, IHttp http);
 
-        Task<HttpContent> Update(Uri requestUri, HttpContent content);
+        Task<HttpContent> Update(Uri requestUri, HttpContent content, IHttp http);
 
-        Task<HttpContent> Delete(Uri requestUri);
-
-        IHttp Http { get; set; }
+        Task<HttpContent> Delete(Uri requestUri, IHttp http);
     }
 }

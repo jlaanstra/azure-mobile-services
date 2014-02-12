@@ -41,9 +41,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
-            disabled.Http = this.http.Object;
-
-            HttpContent content = await disabled.Read(testUri);
+            HttpContent content = await disabled.Read(testUri, this.http.Object);
 
             Assert.AreEqual(testUri, request.RequestUri);
             Assert.AreEqual(testContent, content);
@@ -62,9 +60,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
-            disabled.Http = this.http.Object;
-
-            HttpContent result = await disabled.Insert(testUri, testContent);
+            HttpContent result = await disabled.Insert(testUri, testContent,this.http.Object);
 
             Assert.AreEqual(testUri, request.RequestUri);
             Assert.AreEqual(testContent, request.Content);
@@ -84,9 +80,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
-            disabled.Http = this.http.Object;
-
-            HttpContent result = await disabled.Update(testUri, testContent);
+            HttpContent result = await disabled.Update(testUri, testContent, this.http.Object);
 
             Assert.AreEqual(testUri, request.RequestUri);
             Assert.AreEqual(testContent, request.Content);
@@ -106,9 +100,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
-            disabled.Http = this.http.Object;
-
-            HttpContent result = await disabled.Delete(testUri);
+            HttpContent result = await disabled.Delete(testUri, this.http.Object);
 
             Assert.AreEqual(testUri, request.RequestUri);
             Assert.AreEqual(null, request.Content);

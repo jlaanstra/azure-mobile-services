@@ -42,7 +42,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             this.areWeCachingThis = areWeCachingThis ?? (u => true);
         }
 
-        public override async Task<HttpContent> Read(Uri requestUri)
+        public override async Task<HttpContent> Read(Uri requestUri, IHttp http)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
 
@@ -55,9 +55,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             if (await network.IsConnectedToInternet())
             {
                 //upload changes
-                await this.synchronizer.UploadChanges(UriHelper.GetCleanTableUri(requestUri), this.Http);
+                await this.synchronizer.UploadChanges(UriHelper.GetCleanTableUri(requestUri), http);
                 //download changes
-                await this.synchronizer.DownloadChanges(requestUri, this.Http);
+                await this.synchronizer.DownloadChanges(requestUri, http);
             }
             else
             {
@@ -118,7 +118,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <param name="getResponse">The get response.</param>
         /// <returns></returns>
         /// <exception cref="System.InvalidOperationException">Invalid response.</exception>
-        public override async Task<HttpContent> Insert(Uri requestUri, HttpContent content)
+        public override async Task<HttpContent> Insert(Uri requestUri, HttpContent content, IHttp http)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(content != null, "content");
@@ -132,8 +132,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             if (await network.IsConnectedToInternet())
             {
                 Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
-                await this.synchronizer.UploadChanges(tableUri, this.Http);
-                JObject json = await this.synchronizer.UploadInsert(contentObject, tableUri, this.Http);
+                await this.synchronizer.UploadChanges(tableUri, http);
+                JObject json = await this.synchronizer.UploadInsert(contentObject, tableUri, http);
                 //insert expects a single item so we return the first one
                 result = ResponseHelper.GetResultsJArrayFromJson(json).First;
             }
@@ -172,7 +172,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// or
         /// Invalid response.
         /// </exception>
-        public override async Task<HttpContent> Update(Uri requestUri, HttpContent content)
+        public override async Task<HttpContent> Update(Uri requestUri, HttpContent content, IHttp http)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(content != null, "content");
@@ -193,8 +193,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
                 //make sure we synchronize
-                await this.synchronizer.UploadChanges(tableUri, this.Http);
-                JObject json = await this.synchronizer.UploadUpdate(contentObject, tableUri, this.Http);
+                await this.synchronizer.UploadChanges(tableUri, http);
+                JObject json = await this.synchronizer.UploadUpdate(contentObject, tableUri, http);
                 //update expects a single item so we return the first one
                 result = ResponseHelper.GetResultsJArrayFromJson(json).First;
             }
@@ -219,7 +219,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             return new StringContent(result.ToString(Formatting.None));
         }
 
-        public override async Task<HttpContent> Delete(Uri requestUri)
+        public override async Task<HttpContent> Delete(Uri requestUri, IHttp http)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
 
@@ -235,8 +235,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
                 //make sure we synchronize
-                await this.synchronizer.UploadChanges(tableUri, this.Http);
-                JObject json = await this.synchronizer.UploadDelete(new JObject() { { "id", new JValue(id) } }, tableUri, this.Http);
+                await this.synchronizer.UploadChanges(tableUri, http);
+                JObject json = await this.synchronizer.UploadDelete(new JObject() { { "id", new JValue(id) } }, tableUri, http);
             }
             else
             {
