@@ -87,10 +87,12 @@
         <StackPanel Margin="6" Grid.ColumnSpan="2">
             <TextBlock Text="Integration Tests for Microsoft.WindowsAzure.Mobile.Caching" FontSize="30" TextWrapping="Wrap" />
             <TextBlock x:Name="stats" Text="Loading tests..." />
+            <TextBlock Text="Mobile Service with Sync Uri:" Margin="0,3,0,0" />
+            <TextBox x:Name="syncService"  />
+            <TextBlock Text="Mobile Service without Sync Uri:" Margin="0,3,0,0" />
+            <TextBox x:Name="noSyncService"  />
             <StackPanel Orientation="Horizontal">
-                <Button Content="Run Integration Tests" Margin="0,6,6,0" />
-                <Button Content="Run Response Time Tests" Margin="0,6,6,0" />
-                <Button Content="Run Data Usage Tests" Margin="0,6,6,0" />
+                <Button Content="Run Tests" Margin="0,6,6,0" Click="RunTests_Click" />
             </StackPanel>
         </StackPanel>
 
