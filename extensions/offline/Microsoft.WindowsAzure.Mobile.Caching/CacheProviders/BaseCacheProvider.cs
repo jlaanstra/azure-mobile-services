@@ -10,33 +10,33 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public abstract class BaseCacheProvider : ICacheProvider
     {
-        public virtual async Task<HttpContent> Read(Uri requestUri)
+        public virtual async Task<HttpContent> Read(Uri requestUri, IHttp http)
         {
-            this.Http.OriginalRequest.RequestUri = requestUri;
-            HttpResponseMessage response = await this.Http.SendOriginalAsync();
+            http.OriginalRequest.RequestUri = requestUri;
+            HttpResponseMessage response = await http.SendOriginalAsync();
             return response.Content;
         }
 
-        public virtual async Task<HttpContent> Insert(Uri requestUri, HttpContent content)
+        public virtual async Task<HttpContent> Insert(Uri requestUri, HttpContent content, IHttp http)
         {
-            this.Http.OriginalRequest.RequestUri = requestUri;
-            this.Http.OriginalRequest.Content = content;
-            HttpResponseMessage response = await this.Http.SendOriginalAsync();
+            http.OriginalRequest.RequestUri = requestUri;
+            http.OriginalRequest.Content = content;
+            HttpResponseMessage response = await http.SendOriginalAsync();
             return response.Content;
         }
 
-        public virtual async Task<HttpContent> Update(Uri requestUri, HttpContent content)
+        public virtual async Task<HttpContent> Update(Uri requestUri, HttpContent content, IHttp http)
         {
-            this.Http.OriginalRequest.RequestUri = requestUri;
-            this.Http.OriginalRequest.Content = content;
-            HttpResponseMessage response = await this.Http.SendOriginalAsync();
+            http.OriginalRequest.RequestUri = requestUri;
+            http.OriginalRequest.Content = content;
+            HttpResponseMessage response = await http.SendOriginalAsync();
             return response.Content;
         }
 
-        public virtual async Task<HttpContent> Delete(Uri requestUri)
+        public virtual async Task<HttpContent> Delete(Uri requestUri, IHttp http)
         {
-            this.Http.OriginalRequest.RequestUri = requestUri;
-            HttpResponseMessage response = await this.Http.SendOriginalAsync();
+            http.OriginalRequest.RequestUri = requestUri;
+            HttpResponseMessage response = await http.SendOriginalAsync();
             return response.Content;
         }
 
@@ -44,7 +44,5 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             return false;
         }
-
-        public IHttp Http { get; set; }
     }
 }

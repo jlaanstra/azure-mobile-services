@@ -20,7 +20,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         public void Setup()
         {
             this.provider = new Mock<ICacheProvider>();
-            this.provider.Setup(ic => ic.Read(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")))).Returns(Task.FromResult(returnContent));
+            this.provider.Setup(ic => ic.Read(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")), It.Is<IHttp>(h => h != null))).Returns(Task.FromResult(returnContent));
             this.provider.Setup(ic => ic.ProvidesCacheForRequest(It.IsAny<Uri>())).Returns(true);
 
             this.handler = new CacheHandler(this.provider.Object);
@@ -31,10 +31,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         public async Task CacheHandlerInitializesHttp()
         {
             var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/");
-
-            this.provider.VerifySet(ic => ic.Http = It.IsAny<IHttp>(), Times.Once);
-
+                        
             var response = await this.httpClient.SendAsync(request);
+
+            this.provider.Verify(ic => ic.Read(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")), It.Is<IHttp>(h => h != null)), Times.Once);
 
             Assert.AreEqual(returnContent, response.Content);
             provider.VerifyAll();

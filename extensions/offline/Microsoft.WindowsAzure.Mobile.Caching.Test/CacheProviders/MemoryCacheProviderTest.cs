@@ -41,21 +41,19 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             response.Content = testContent;
             this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
-            
-            memory.Http = this.http.Object;
             #endregion
 
-            HttpContent result = await memory.Read(testUri);
+            HttpContent result = await memory.Read(testUri, this.http.Object);
             Assert.AreEqual(testContent, result);
 
             response.Content = empty;
 
-            result = await memory.Read(testUri);
+            result = await memory.Read(testUri, this.http.Object);
             Assert.AreEqual(testContent, result);
 
             await Task.Delay(5000);
 
-            result = await memory.Read(testUri);
+            result = await memory.Read(testUri, this.http.Object);
             Assert.AreEqual(empty, result);
         }
     }

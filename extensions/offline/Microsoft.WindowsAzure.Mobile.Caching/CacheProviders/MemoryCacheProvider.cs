@@ -34,7 +34,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <param name="requestUri">The Uri of the request.</param>
         /// <param name="getResponse">A function to actually call the server.</param>
         /// <returns>A response possibly cached.</returns>
-        public override async Task<HttpContent> Read(Uri requestUri)
+        public override async Task<HttpContent> Read(Uri requestUri, IHttp http)
         {
             Tuple<DateTime, HttpContent> cachedValue;
             //look for existing item and check if not expired
@@ -47,7 +47,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
 
             //return and cache a fresh response
-            HttpContent content = await base.Read(requestUri);
+            HttpContent content = await base.Read(requestUri, http);
             memCache[requestUri] = new Tuple<DateTime, HttpContent>(DateTime.UtcNow, content);
             return content;
         }
