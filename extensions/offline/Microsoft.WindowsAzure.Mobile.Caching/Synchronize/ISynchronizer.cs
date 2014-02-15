@@ -12,7 +12,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         event EventHandler<Conflict> Conflict;
         void NotifyOfUnsynchronizedChange();
 
-        Task DownloadChanges(Uri requestUri, IHttp http);
+        Task<JObject> DownloadChanges(Uri requestUri, IHttp http);
 
         Task UploadChanges(Uri tableUri, IHttp http);
 
