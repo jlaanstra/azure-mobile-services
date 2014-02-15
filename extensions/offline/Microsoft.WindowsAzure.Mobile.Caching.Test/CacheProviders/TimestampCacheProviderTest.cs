@@ -44,7 +44,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
 
             this.network.Setup(ini => ini.IsConnectedToInternet()).Returns(() => Task.FromResult(true));
 
-            this.synchronizer.Setup(s => s.DownloadChanges(It.Is<Uri>(u => u.OriginalString.Equals(url)), It.Is<IHttp>(h => h == this.http.Object))).Returns(Task.FromResult(0));
+            this.synchronizer.Setup(s => s.DownloadChanges(It.Is<Uri>(u => u.OriginalString.Equals(url)), It.Is<IHttp>(h => h == this.http.Object))).Returns(Task.FromResult(new JObject()));
             this.synchronizer.Setup(s => s.UploadChanges(It.Is<Uri>(u => u.OriginalString.Equals(url)), It.Is<IHttp>(h => h == this.http.Object))).Returns(Task.FromResult(0));
             
             this.storage.Setup(iss => iss.GetStoredData(It.Is<string>(str => str.Equals("table")), It.IsAny<IQueryOptions>()))
