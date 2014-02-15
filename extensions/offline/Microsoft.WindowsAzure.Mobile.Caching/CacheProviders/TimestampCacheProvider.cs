@@ -57,15 +57,20 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 //upload changes
                 await this.synchronizer.UploadChanges(UriHelper.GetCleanTableUri(requestUri), http);
                 //download changes
-                await this.synchronizer.DownloadChanges(requestUri, http);
-            }
-            else
-            {
-                // add count in case of offline
-                if (requestUri.OriginalString.Contains("$inlinecount=allpages"))
+                JToken count;
+                JObject obj = await this.synchronizer.DownloadChanges(requestUri, http);
+                if(obj.TryGetValue("count", out count))
+                {
+                    json["count"] = count;
+                }
+                else
                 {
                     json["count"] = -1;
                 }
+            }
+            else
+            {
+                json["count"] = -1;
             }
 
             using (await this.storage.Open())
@@ -141,9 +146,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 this.synchronizer.NotifyOfUnsynchronizedChange();
 
-                contentObject["id"] = Guid.NewGuid().ToString();
+                if (contentObject["id"] == null)
+                {
+                    contentObject["id"] = Guid.NewGuid().ToString();
+                }
                 //set status to inserted
                 contentObject["status"] = (int)ItemStatus.Inserted;
+                contentObject["__version"] = null;
 
                 using (await this.storage.Open())
                 {
