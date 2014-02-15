@@ -75,7 +75,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                     response = http.OriginalResponse;
                 }
-                cancellationToken.ThrowIfCancellationRequested();
 
                 if (response == null)
                 {
