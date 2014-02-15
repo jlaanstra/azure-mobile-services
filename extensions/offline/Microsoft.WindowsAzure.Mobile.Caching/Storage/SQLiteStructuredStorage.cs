@@ -22,7 +22,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 #endif
         private static Task completed = Task.FromResult(0);
 
-        private IDictionary<string, Column> defaultColumns = new Dictionary<string, Column>()
+        internal IDictionary<string, Column> defaultColumns = new Dictionary<string, Column>()
         {
             { "id", new Column("id", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), false, null, 1, true) }, // globally unique
             { "__version", new Column("__version", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), true, null, 0, true) }, // version of local item
@@ -109,7 +109,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             EnsureDatabaseThread();
 
             // the actual columns for the item
-            IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);
+            IDictionary<string, Column> columns = this.GetColumnsFromItems(data);
             this.EnsureSchemaForTable(tableName, db, columns);
 
             try
@@ -140,7 +140,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             EnsureDatabaseThread();
 
             // the actual columns for the item
-            IDictionary<string, Column> columns = this.GetColumnsFromItem(data.First as JObject);
+            IDictionary<string, Column> columns = this.GetColumnsFromItems(data);
             this.EnsureSchemaForTable(tableName, db, columns);
 
             try
@@ -183,20 +183,54 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        private IDictionary<string, Column> GetColumnsFromItem(IDictionary<string, JToken> item)
+        internal IDictionary<string, Column> GetColumnsFromItems(JArray items)
         {
-            Contract.Requires(item != null, "item cannot be null");
+            Contract.Requires(items != null, "item cannot be null");
 
             IDictionary<string, Column> cols = new Dictionary<string, Column>(defaultColumns);
-            foreach (var kvp in item.Where(prop => !defaultColumns.ContainsKey(prop.Key)))
+
+            IEnumerator<IDictionary<string, JToken>> objects = items.OfType<IDictionary<string, JToken>>().GetEnumerator();
+            objects.MoveNext();
+            IList<string> columnsToDetermine = objects.Current.Where(prop => !defaultColumns.ContainsKey(prop.Key))
+                .Select(p => p.Key).ToList();
+
+            do
             {
-                cols.Add(kvp.Key, new Column(kvp.Key, ColumnTypeHelper.GetColumnTypeForClrType(((JValue)kvp.Value).Value.GetType()), true));
+                IList<string> nullColumns = new List<string>();
+                foreach (var key in columnsToDetermine)
+                {
+                    JToken token;
+                    if (objects.Current.TryGetValue(key, out token))
+                    {
+                        JValue val = token as JValue;
+                        if (val != null)
+                        {
+                            if (val.Value == null)
+                            {
+                                nullColumns.Add(key);
+                            }
+                            else
+                            {
+                                cols.Add(key, new Column(key, ColumnTypeHelper.GetColumnTypeForClrType(val.Value.GetType()), true));
+                            }
+                        }
+                    }
+                }
+                columnsToDetermine = nullColumns;
             }
+            while (columnsToDetermine.Count > 0 && objects.MoveNext());
 
             return cols;
         }
 
-        private IDictionary<string, Column> DetermineNewColumns(IDictionary<string, Column> table, IDictionary<string, Column> item)
+
+        /// <summary>
+        /// Determines the new columns on the item. Missing columns should be ignored.
+        /// </summary>
+        /// <param name="table">The table.</param>
+        /// <param name="item">The item.</param>
+        /// <returns></returns>
+        internal IDictionary<string, Column> DetermineNewColumns(IDictionary<string, Column> table, IDictionary<string, Column> item)
         {
             //all columns in item with name that do not exist in table 
             return item.Where(c => !table.ContainsKey(c.Key)).ToDictionary(x => x.Key, x => x.Value);
