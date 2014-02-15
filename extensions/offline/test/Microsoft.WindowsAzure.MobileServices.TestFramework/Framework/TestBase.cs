@@ -14,6 +14,12 @@ namespace Microsoft.WindowsAzure.MobileServices.TestFramework
     {
         private TestHarness TestHarness { get; set; }
 
+        public virtual Task Initialize()
+        { return Task.FromResult(0); }
+
+        public virtual Task CleanUp()
+        { return Task.FromResult(0); }
+
         internal void SetTestHarness(TestHarness testHarness)
         {
             this.TestHarness = testHarness;

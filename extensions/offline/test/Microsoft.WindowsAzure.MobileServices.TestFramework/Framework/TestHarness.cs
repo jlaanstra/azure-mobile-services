@@ -149,7 +149,7 @@ namespace Microsoft.WindowsAzure.MobileServices.TestFramework
             // calls to testLoop only occur in the tail position.
             Action testLoop = null;
             testLoop =
-                () =>
+                async () =>
                 {
                     if (methods != null && methods.MoveNext())
                     {
@@ -208,11 +208,21 @@ namespace Microsoft.WindowsAzure.MobileServices.TestFramework
                         if (currentGroup != null)
                         {
                             Reporter.EndGroup(currentGroup);
+                            TestBase testBase = currentGroup.Instance as TestBase;
+                            if(testBase != null)
+                            {
+                                await testBase.CleanUp();
+                            }
                             currentGroup = null;
                         }
 
                         // Setup the UI for this next group
                         currentGroup = groups.Current;
+                        TestBase testBase2 = currentGroup.Instance as TestBase;
+                        if (testBase2 != null)
+                        {
+                            await testBase2.Initialize();
+                        }
                         Reporter.StartGroup(currentGroup);
 
                         // Get the methods and immediately recurse which will
@@ -220,14 +230,21 @@ namespace Microsoft.WindowsAzure.MobileServices.TestFramework
                         methods = groups.Current.Methods.OrderBy(m => m.Name).GetEnumerator();
                         testLoop();
                     }
-                    else
+                    else 
                     {
                         // Otherwise if we've finished the entire test run
-                        
-                        // Finish the UI for the last group and update the
-                        // progress after the very last test method.
-                        Reporter.EndGroup(currentGroup);
-                        Reporter.Progress(this);
+                        if (currentGroup != null)
+                        {
+                            // Finish the UI for the last group and update the
+                            // progress after the very last test method.
+                            Reporter.EndGroup(currentGroup);
+                            TestBase testBase = currentGroup.Instance as TestBase;
+                            if (testBase != null)
+                            {
+                                await testBase.CleanUp();
+                            }
+                            Reporter.Progress(this);
+                        }
 
                         // Finish the UI for the test run.
                         Reporter.EndRun(this);
@@ -240,11 +257,10 @@ namespace Microsoft.WindowsAzure.MobileServices.TestFramework
 
         private static void LoadTestAssembly(TestHarness harness, Assembly testAssembly)
         {
-            Dictionary<Type, TestGroup> groups = new Dictionary<Type, TestGroup>();
-            Dictionary<TestGroup, object> instances = new Dictionary<TestGroup, object>();
-            foreach (Type type in testAssembly.GetTypes())
+            Dictionary<TypeInfo, TestGroup> groups = new Dictionary<TypeInfo, TestGroup>();
+            foreach (TypeInfo type in testAssembly.DefinedTypes)
             {
-                foreach (MethodInfo method in type.GetMethods())
+                foreach (MethodInfo method in type.AsType().GetRuntimeMethods())
                 {
                     if (method.GetCustomAttributes(true).Where(a => a.GetType() == typeof(TestMethodAttribute) ||
                                                                      a.GetType() == typeof(AsyncTestMethodAttribute))
@@ -258,28 +274,24 @@ namespace Microsoft.WindowsAzure.MobileServices.TestFramework
                             harness.Groups.Add(group);
                             groups[type] = group;
 
-                            instance = Activator.CreateInstance(type);
+                            instance = Activator.CreateInstance(type.AsType());
                             TestBase testBase = instance as TestBase;
                             if (testBase != null)
                             {
                                 testBase.SetTestHarness(harness);
                             }
 
-                            instances[group] = instance;
-                        }
-                        else
-                        {
-                            instances.TryGetValue(group, out instance);
+                            group.Instance = instance;
                         }
 
-                        TestMethod test = CreateMethod(type, instance, method);
+                        TestMethod test = CreateMethod(type, group.Instance, method);
                         group.Methods.Add(test);
                     }
                 }
             }
         }
 
-        private static TestGroup CreateGroup(Type type)
+        private static TestGroup CreateGroup(TypeInfo type)
         {
             TestGroup group = new TestGroup();
             group.Name = type.Name;
@@ -296,7 +308,7 @@ namespace Microsoft.WindowsAzure.MobileServices.TestFramework
             return group;
         }
 
-        private static TestMethod CreateMethod(Type type, object instance, MethodInfo method)
+        private static TestMethod CreateMethod(TypeInfo type, object instance, MethodInfo method)
         {
             TestMethod test = new TestMethod();
             test.Name = method.Name;

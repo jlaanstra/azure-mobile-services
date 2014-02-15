@@ -27,6 +27,8 @@ namespace Microsoft.WindowsAzure.MobileServices.TestFramework
         /// </summary>
         public string Name { get; set; }
 
+        public object Instance { get; set; }
+
         /// <summary>
         /// Gets the list of tags associated with this test group.
         /// </summary>
