@@ -72,42 +72,66 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <CollectionViewSource x:Key="cvsTests" />
     </Window.Resources>
     <Grid Background="Black">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*" />
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="200" />
+            <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <StackPanel Margin="6" Grid.ColumnSpan="2">
+        <StackPanel Margin="6" Grid.ColumnSpan="3">
             <TextBlock Text="Integration Tests for Microsoft.WindowsAzure.Mobile.Caching" FontSize="30" TextWrapping="Wrap" />
-            <TextBlock x:Name="stats" Text="Loading tests..." />
-            <TextBlock Text="Mobile Service with Sync Uri:" Margin="0,3,0,0" />
-            <TextBox x:Name="syncService"  />
-            <TextBlock Text="Mobile Service without Sync Uri:" Margin="0,3,0,0" />
-            <TextBox x:Name="noSyncService"  />
+            <TextBlock x:Name="stats">
+                <Run x:Name="lblCurrentTestNumber" Text="0" />
+                <Run Text=" / " />
+                <Run x:Name="lblTotalTestNumber" Text="0" />
+                <Run Text="  (with  " />
+                <Run x:Name="lblFailureNumber" Text="0" />
+                <Run Text=" failures)" />
+            </TextBlock>
+            <ProgressBar x:Name="progress" />
             <StackPanel Orientation="Horizontal">
-                <Button Content="Run Tests" Margin="0,6,6,0" Click="RunTests_Click" />
+                <Button x:Name="runTests" Content="Run Tests" Margin="0,6,6,0" Click="RunTests_Click" />
+                <TextBox x:Name="tag" Width="100" Margin="0,6,6,0"/>
             </StackPanel>
         </StackPanel>
+        <StackPanel Grid.Row="1" Margin="6">
+            <TextBlock Text="Mobile Service with Sync Uri:" Margin="0,3,0,0" />
+            <TextBox x:Name="syncService"  />
+            <TextBlock Text="Key:" Margin="0,3,0,0" />
+            <TextBox x:Name="syncServiceKey"  />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="6">
+            <TextBlock Text="Mobile Service without Sync Uri:" Margin="0,3,0,0" />
+            <TextBox x:Name="noSyncService"  />
+            <TextBlock Text="Key:" Margin="0,3,0,0" />
+            <TextBox x:Name="noSyncServiceKey"  />
+        </StackPanel>
 
-        <ListView Grid.Row="1" Background="Transparent" Margin="0" Style="{DynamicResource ListViewStyle}">
+        <ListView x:Name="lstTests" Grid.Row="2" Grid.ColumnSpan="2" Background="Transparent" Margin="0" 
+                  ItemsSource="{Binding Source={StaticResource cvsTests}}"
+                  Style="{DynamicResource ListViewStyle}"
+                  Foreground="White"
+                  SelectionMode="Single"
+                  SelectionChanged="lstTests_SelectionChanged">
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="Test" Width="300" DisplayMemberBinding="{Binding Name}" />
                     <GridViewColumn Header="Executing Time" Width="100" DisplayMemberBinding="{Binding Duration}" />
-                    <GridViewColumn Header="Data Usage" Width="100" DisplayMemberBinding="{Binding DataUsage}" />
+                    <GridViewColumn Header="Data Usage" Width="100" DisplayMemberBinding="{Binding Bytes}" />
                 </GridView>
             </ListView.View>
         </ListView>
 
-        <TextBlock x:Name="details" Margin="6" TextWrapping="Wrap" Grid.Row="1" Grid.Column="1" Text="No test selected." />
-        <TextBlock x:Name="results" Margin="6" Height="100" TextWrapping="Wrap" Grid.Row="2" Grid.ColumnSpan="2" Text="No results." />
+        <TextBlock x:Name="details" Margin="6" TextWrapping="Wrap" Grid.Row="2" Grid.Column="2" Text="No test selected." />
 
     </Grid>
 </Window>
