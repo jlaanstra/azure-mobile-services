@@ -13,20 +13,20 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
     {
         private static IDictionary<Type, Func<ISQLiteStatement, int, JValue>> typeToValue = new Dictionary<Type, Func<ISQLiteStatement, int, JValue>>()
         {
-            { typeof(int), (stm, i) => new JValue((int)stm[i]) },
-            { typeof(uint), (stm, i) => new JValue((int)stm[i]) },
-            { typeof(long), (stm, i) => new JValue((int)stm[i]) },
-            { typeof(ulong), (stm, i) => new JValue((int)stm[i]) },
-            { typeof(short), (stm, i) => new JValue((int)stm[i]) },
-            { typeof(ushort), (stm, i) => new JValue((int)stm[i]) },
-            { typeof(sbyte), (stm, i) => new JValue((int)stm[i]) },
-            { typeof(byte), (stm, i) => new JValue((int)stm[i]) },
-            { typeof(char), (stm, i) => new JValue(stm[i].ToString()[0]) },
+            { typeof(int), (stm, i) => new JValue(Convert.ToInt64(stm[i])) },
+            { typeof(uint), (stm, i) => new JValue(Convert.ToInt64(stm[i])) },
+            { typeof(long), (stm, i) => new JValue(Convert.ToInt64(stm[i])) },
+            { typeof(ulong), (stm, i) => new JValue(Convert.ToUInt64(stm[i])) },
+            { typeof(short), (stm, i) => new JValue(Convert.ToInt64(stm[i])) },
+            { typeof(ushort), (stm, i) => new JValue(Convert.ToInt64(stm[i])) },
+            { typeof(sbyte), (stm, i) => new JValue(Convert.ToInt64(stm[i])) },
+            { typeof(byte), (stm, i) => new JValue(Convert.ToInt64(stm[i])) },
+            { typeof(char), (stm, i) => new JValue(Convert.ToChar(stm[i])) },
             { typeof(string), (stm, i) => new JValue(stm[i].ToString()) },
-            { typeof(double), (stm, i) => new JValue((double)stm[i]) },
-            { typeof(decimal), (stm, i) => new JValue((double)stm[i]) },
-            { typeof(float), (stm, i) => new JValue((double)stm[i]) },
-            { typeof(bool), (stm, i) => new JValue((int)stm[i] == 1) },
+            { typeof(double), (stm, i) => new JValue(Convert.ToDouble(stm[i])) },
+            { typeof(decimal), (stm, i) => new JValue(Convert.ToDouble(stm[i])) },
+            { typeof(float), (stm, i) => new JValue(Convert.ToSingle(stm[i])) },
+            { typeof(bool), (stm, i) => new JValue(Convert.ToInt32(stm[i]) == 1) },
             { typeof(DateTime), (stm, i) => 
             {
                 DateTime datetime;
@@ -51,7 +51,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     return null;
                 }
             } },
-            { typeof(Guid), (stm, i) => new JValue(stm[i].ToString()) },
+            { typeof(Guid), (stm, i) => new JValue(new Guid(stm[i].ToString())) },
         };
 
         private static IDictionary<Type, Action<ISQLiteStatement, int, JValue>> bindToValue = new Dictionary<Type, Action<ISQLiteStatement, int, JValue>>()
@@ -63,7 +63,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             //uint can overflow int
             { typeof(uint), (stm, i, token) => stm.Bind(i, Convert.ToInt64(token.Value)) },
             { typeof(long), (stm, i, token) => stm.Bind(i, Convert.ToInt64(token.Value)) },
-            { typeof(ulong), (stm, i, token) => stm.Bind(i, Convert.ToInt64(token.Value)) },
+            { typeof(ulong), (stm, i, token) => stm.Bind(i, Convert.ToUInt64(token.Value)) },
             { typeof(short), (stm, i, token) => stm.Bind(i, Convert.ToInt32(token.Value)) },
             { typeof(ushort), (stm, i, token) => stm.Bind(i, Convert.ToInt32(token.Value)) },
             { typeof(sbyte), (stm, i, token) => stm.Bind(i, Convert.ToInt32(token.Value)) },
@@ -81,18 +81,19 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public static bool DoesTableExist(this SQLiteConnection This, string tableName)
         {
-            string sqlStatement = "SELECT COUNT(*) FROM sqlite_master WHERE type = ? AND name = ?";
+            string sqlStatement = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?";
 
             Debug.WriteLine(sqlStatement);
 
             using (ISQLiteStatement stm = This.Prepare(sqlStatement))
             {
-                stm.Bind(1, "table");
-                stm.Bind(2, tableName);
+                stm.Bind(1, tableName);
+                
+                SQLiteResult res = stm.Step();
 
-                if (stm.Step() == SQLiteResult.OK)
+                if(res == SQLiteResult.ROW)
                 {
-                    return (int)stm[0] == 1;
+                    return Convert.ToInt32(stm[0]) == 1;
                 }
                 return false;
             }
@@ -106,7 +107,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             using (ISQLiteStatement stm = This.Prepare(sqlStatement))
             {
-                stm.Step();
+                SQLiteResult result = stm.Step();
             }
         }
 
@@ -118,19 +119,27 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             using (ISQLiteStatement stm = This.Prepare(sqlStatement))
             {
-                stm.Step();
+                SQLiteResult result = stm.Step();
             }
         }
 
         public static IDictionary<string, Column> GetColumnsForTable(this SQLiteConnection This, string tableName)
         {
-            using (ISQLiteStatement stm = This.Prepare(string.Format("pragma table_info({0})", tableName)))
+            string sqlStatement = string.Format("pragma table_info({0})", tableName);
+
+            Debug.WriteLine(sqlStatement);
+
+            using (ISQLiteStatement stm = This.Prepare(sqlStatement))
             {
                 IDictionary<string, Column> columns = new Dictionary<string, Column>();
 
-                while (stm.Step() == SQLiteResult.OK)
+                SQLiteResult result = stm.Step();
+
+                while (result == SQLiteResult.ROW)
                 {
-                    columns.Add(stm[1].ToString(), new Column(stm[1].ToString(), stm[2].ToString(), (int)stm[3] != 0, stm[4].ToString(), (int)stm[5]));
+                    columns.Add(stm[1].ToString(), new Column(stm[1].ToString(), stm[2].ToString(), Convert.ToInt32(stm[3]) != 0, stm[4], Convert.ToInt32(stm[5])));
+
+                    result = stm.Step();
                 }
 
                 return columns;
@@ -145,17 +154,21 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             using (ISQLiteStatement stm = This.Prepare(sqlStatement))
             {
-                stm.Step();
+                SQLiteResult result = stm.Step();
             }
         }
 
         public static JArray Query(this SQLiteConnection This, string sqlStatement, IDictionary<string, Column> columns)
         {
+            Debug.WriteLine(sqlStatement);
+
             using (ISQLiteStatement stm = This.Prepare(sqlStatement))
             {
                 JArray results = new JArray();
 
-                while (stm.Step() == SQLiteResult.OK)
+                SQLiteResult result = stm.Step();
+
+                while (result == SQLiteResult.ROW)
                 {
                     JObject item = new JObject();
                     for (int i = 0; i < columns.Count; i++)
@@ -167,10 +180,19 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                         {
                             throw new InvalidOperationException("Type is unknown for a mapping to a sqlite type.");
                         }
-                        item[col.Name] = valueEvaluator(stm, i);
+                        if (stm[i] == null)
+                        {
+                            item[col.Name] = new JValue((object)null);
+                        }
+                        else
+                        {
+                            item[col.Name] = valueEvaluator(stm, i);
+                        }
                     }
 
                     results.Add(item);
+
+                    result = stm.Step();
                 }
 
                 return results;
@@ -179,7 +201,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public static void InsertIntoTable(this SQLiteConnection This, string tableName, IDictionary<string, Column> columns, IDictionary<string, JToken> data)
         {
-            int count = data.Count;
+            int count = columns.Count;
 
             StringBuilder builder = new StringBuilder(count * 2 - 1);
             for (int i = 0; i < count; i++)
@@ -192,7 +214,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string sqlStatement = string.Format("INSERT OR REPLACE INTO {0} ('{1}') VALUES ({2})",
                 tableName,
-                string.Join("','", data.Keys),
+                string.Join("','", columns.Keys),
                 insertStatement
                 );
 
@@ -202,7 +224,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 stm.BindDataToStatement(columns, data);
 
-                stm.Step();
+                SQLiteResult result = stm.Step();
             }
         }
 
@@ -211,7 +233,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             int count = data.Count;
 
             StringBuilder builder = new StringBuilder();
-            foreach (var prop in data)
+            foreach (var prop in columns)
             {
                 builder.Append(prop.Key);
                 builder.Append(" = ");
@@ -233,22 +255,22 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 stm.BindDataToStatement(columns, data);
 
-                stm.Step();
+                SQLiteResult result = stm.Step();
             }
         }
 
         private static void BindDataToStatement(this ISQLiteStatement This, IDictionary<string, Column> columns, IDictionary<string, JToken> data)
         {
             int j = 1;
-            foreach (var prop in data)
+            foreach (var prop in columns)
             {
-                Column c = columns[prop.Key];
-                JValue value = prop.Value as JValue;
+                Column c = prop.Value;
+                JValue value = data[prop.Key] as JValue;
 
                 if (value != null && value.Value != null)
                 {
                     //make sure string ids are inserted lowercase
-                    if (c.IsBuiltin && c.GetClrDataType() == typeof(Guid))
+                    if (c.IsBuiltin && c.GetClrDataType() == typeof(string))
                     {
                         value = new JValue(value.Value.ToString().ToLowerInvariant());
                     }
@@ -299,14 +321,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     stm.Bind(i + 1, e.Current.ToLowerInvariant());
                 }
 
-                stm.Step();
+                SQLiteResult result = stm.Step();
             }
         }
     }
 
     public class Column
     {
-        public Column(string name, string dataType, bool nullable, string defaultValue = null, int primaryKeyIndex = 0, bool isBuiltin = false)
+        public Column(string name, string dataType, bool nullable, object defaultValue = null, int primaryKeyIndex = 0, bool isBuiltin = false)
         {
             this.Name = name;
             this.DataType = dataType;
@@ -321,7 +343,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public bool Nullable { get; private set; }
 
-        public string DefaultValue { get; private set; }
+        public object DefaultValue { get; private set; }
 
         public int PrimaryKeyIndex { get; private set; }
 
@@ -346,7 +368,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 This.DataType,
                 This.PrimaryKeyIndex != 0 ? " PRIMARY KEY" : string.Empty,
                 !This.Nullable ? " NOT NULL" : string.Empty,
-                !string.IsNullOrEmpty(This.DefaultValue) ? string.Format(" DEFAULT {0}", This.DefaultValue) : string.Empty
+                This.DefaultValue != null ? string.Format(" DEFAULT {0}", This.DefaultValue) : string.Empty
             );
         }
     }
