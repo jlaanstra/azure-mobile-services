@@ -47,7 +47,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             this.timestampsLoaded = new AsyncLazy<bool>(() => this.LoadTimestamps());
         }
 
-        public async Task DownloadChanges(Uri requestUri, IHttp http)
+        public async Task<JObject> DownloadChanges(Uri requestUri, IHttp http)
         {
             //get latest known timestamp for a reqeust
             string timestamp = await GetLastTimestampForRequest(requestUri);
@@ -65,7 +65,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             http.OriginalRequest.RequestUri = stampedRequestUri;
             HttpResponseMessage response = await http.SendOriginalAsync();
             JObject json = await ResponseHelper.GetResponseAsJObject(response.Content);
-
+            
             // get the tablename out of the uri
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
@@ -80,6 +80,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 await this.storage.StoreData(tableName, ResponseHelper.GetResultsJArrayFromJson(json));
                 await this.storage.RemoveStoredData(tableName, ResponseHelper.GetDeletedJArrayFromJson(json));
             }
+
+            return json;
         }
 
         /// <summary>
@@ -199,7 +201,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public async Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http)
         {
-            Uri deleteUri = new Uri(tableUri.OriginalString + "/" + item["id"].ToString());
+            Uri deleteUri = new Uri(string.Format("{0}/{1}?version={2}", tableUri.OriginalString, item["id"].ToString(), item["__version"].ToString()));
 
             HttpRequestMessage req = http.CreateRequest(HttpMethod.Delete, deleteUri);
 
