@@ -29,7 +29,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.Storage
 
             IDictionary<string, Column> cols = storage.GetColumnsFromItems(array);
 
-            Assert.AreEqual(storage.defaultColumns.Count + 3, cols.Count);
+            Assert.AreEqual(3, cols.Count);
 
             Assert.IsTrue(cols.ContainsKey("integer"));
             // json.net makes int long
@@ -62,7 +62,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.Storage
 
             IDictionary<string, Column> cols = storage.GetColumnsFromItems(array);
 
-            Assert.AreEqual(storage.defaultColumns.Count + 4, cols.Count);
+            Assert.AreEqual(4, cols.Count);
 
             Assert.IsTrue(cols.ContainsKey("integer"));
             // json.net makes int long
