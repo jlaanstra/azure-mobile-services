@@ -4,6 +4,7 @@ using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.MobileServices;
@@ -166,7 +167,27 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public async Task<JObject> UploadUpdate(JObject item, Uri tableUri, IHttp http)
         {
-            string version = item["__version"].ToString();
+            string version = null;
+            JToken versionToken = item["__version"];
+            if(versionToken != null)
+            {
+                version = versionToken.ToString();
+            }
+            else if(http.OriginalRequest != null)
+            {
+                EntityTagHeaderValue tag = http.OriginalRequest.Headers.IfMatch.FirstOrDefault();
+                if (tag != null)
+                {
+                    //trim "
+                    version = tag.Tag.Trim(new char[] { '"' });
+                }
+            }
+
+            if(version == null)
+            {
+                throw new InvalidOperationException("Cannot update value without __version.");
+            }
+
             //remove systemproperties
             JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
 

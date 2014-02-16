@@ -95,6 +95,8 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="TestDescription.cs" />
+    <Compile Include="Tests\ConsistencyTests\DeleteTests.cs" />
+    <Compile Include="Tests\ConsistencyTests\UpdateTests.cs" />
     <Compile Include="Tests\ConsistencyTests\InsertTests.cs" />
     <Compile Include="Tests\ConsistencyTests\ReadTests.cs" />
     <Compile Include="Tests\OfflineTestBase.cs" />
@@ -162,7 +164,7 @@
   <ItemGroup>
     <Folder Include="Tests\BandwidthUsageTests\" />
     <Folder Include="Tests\ConflictTests\" />
-    <Folder Include="Tests\DataUsageTests\" />
+    <Folder Include="Tests\DataContextTests\" />
     <Folder Include="Tests\ResponseTimeTests\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -32,7 +32,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
                 {
                     return Task.FromResult(new JArray());
                 });
-            this.storage.Setup(iss => iss.StoreData(It.IsAny<string>(), It.IsAny<JArray>()))
+            this.storage.Setup(iss => iss.StoreData(It.IsAny<string>(), It.IsAny<JArray>(), It.IsAny<bool>()))
                 .Returns(() =>
                 {
                     return Task.FromResult(0);
@@ -208,7 +208,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
                             }}"
                         , url, timestamp))));
                 });
-            this.storage.Setup(iss => iss.StoreData(It.IsAny<string>(), It.IsAny<JArray>()))
+            this.storage.Setup(iss => iss.StoreData(It.IsAny<string>(), It.IsAny<JArray>(), It.IsAny<bool>()))
                 .Returns(() =>
                 {
                     return Task.FromResult(0);
