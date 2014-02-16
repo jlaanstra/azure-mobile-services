@@ -98,7 +98,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
             return Task.FromResult(StoredArray);
         }
 
-        public Task StoreData(string tableName, JArray data)
+        public Task StoreData(string tableName, JArray data, bool overwrite = true)
         {
             throw new NotImplementedException();
         }
