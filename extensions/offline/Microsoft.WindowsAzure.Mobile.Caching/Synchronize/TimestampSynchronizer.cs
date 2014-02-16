@@ -103,41 +103,42 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
+            JArray localChanges = new JArray();
             // all communication with the database should be on the same thread
             using (await this.storage.Open())
             {
                 //sent all local changes 
-                JArray localChanges = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery("status ne 0") });
-                foreach (JObject item in localChanges)
-                {
-                    try
-                    {
-                        JToken status;
-                        if (item.TryGetValue("status", out status))
-                        {
-                            ItemStatus itemStatus = (ItemStatus)(int)status;
-                            item.Remove("status");
-                            //preform calls based on status: insert, change, delete 
-                            switch (itemStatus)
-                            {
-                                case ItemStatus.Inserted:
-                                    await this.UploadInsert(item, tableUri, http);
-                                    break;
-                                case ItemStatus.Changed:
-                                    await this.UploadUpdate(item, tableUri, http);
-                                    break;
-                                case ItemStatus.Deleted:
-                                    await this.UploadDelete(item, tableUri, http);
-                                    break;
-                            };
-                        }
-                    }
-                    catch { }
-                }
-
-                //we have synchronized everything
-                this.hasLocalChanges = false;
+                localChanges = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery("status ne 0") });
             }
+            foreach (JObject item in localChanges)
+            {
+                try
+                {
+                    JToken status;
+                    if (item.TryGetValue("status", out status))
+                    {
+                        ItemStatus itemStatus = (ItemStatus)(int)status;
+                        item.Remove("status");
+                        //preform calls based on status: insert, change, delete 
+                        switch (itemStatus)
+                        {
+                            case ItemStatus.Inserted:
+                                await this.UploadInsert(item, tableUri, http);
+                                break;
+                            case ItemStatus.Changed:
+                                await this.UploadUpdate(item, tableUri, http);
+                                break;
+                            case ItemStatus.Deleted:
+                                await this.UploadDelete(item, tableUri, http);
+                                break;
+                        };
+                    }
+                }
+                catch { }
+            }
+
+            //we have synchronized everything
+            this.hasLocalChanges = false;
         }
 
         public async Task<JObject> UploadInsert(JObject item, Uri tableUri, IHttp http)
@@ -154,8 +155,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
-            await this.storage.StoreData(tableName, results);
-            await this.storage.RemoveStoredData(tableName, deleted);
+            using (await this.storage.Open())
+            {
+                await this.storage.StoreData(tableName, results);
+                await this.storage.RemoveStoredData(tableName, deleted);
+            }
 
             return response;
         }
@@ -166,7 +170,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             //remove systemproperties
             JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
 
-            Uri updateUri = new Uri(tableUri.OriginalString + "/" + item["id"].ToString());
+            Uri updateUri = new Uri(tableUri.OriginalString + "/" + Uri.EscapeDataString(item["id"].ToString()));
 
             HttpRequestMessage req = http.CreateRequest(new HttpMethod("PATCH"), updateUri, new Dictionary<string, string>() { { "If-Match", string.Format("\"{0}\"", version) } });
             req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
@@ -179,8 +183,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                 string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
-                await this.storage.StoreData(tableName, results);
-                await this.storage.RemoveStoredData(tableName, deleted);
+                using (await this.storage.Open())
+                {
+                    await this.storage.StoreData(tableName, results);
+                    await this.storage.RemoveStoredData(tableName, deleted);
+                }
 
                 return response;
             }
@@ -201,7 +208,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public async Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http)
         {
-            Uri deleteUri = new Uri(string.Format("{0}/{1}?version={2}", tableUri.OriginalString, item["id"].ToString(), item["__version"].ToString()));
+            Uri deleteUri = new Uri(string.Format("{0}/{1}?version={2}", 
+                tableUri.OriginalString, 
+                Uri.EscapeDataString(item["id"].ToString()), 
+                Uri.EscapeDataString(item["__version"].ToString())));
 
             HttpRequestMessage req = http.CreateRequest(HttpMethod.Delete, deleteUri);
 
@@ -213,8 +223,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                 string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
-                await this.storage.StoreData(tableName, results);
-                await this.storage.RemoveStoredData(tableName, deleted);
+                using (await this.storage.Open())
+                {
+                    await this.storage.StoreData(tableName, results);
+                    await this.storage.RemoveStoredData(tableName, deleted);
+                }
 
                 return response;
             }
