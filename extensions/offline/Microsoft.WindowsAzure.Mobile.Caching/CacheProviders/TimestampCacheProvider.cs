@@ -245,7 +245,15 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
                 //make sure we synchronize
                 await this.synchronizer.UploadChanges(tableUri, http);
-                JObject json = await this.synchronizer.UploadDelete(new JObject() { { "id", new JValue(id) } }, tableUri, http);
+                JArray arr = new JArray();
+                using (await this.storage.Open())
+                {
+                    arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", id)) });
+                }
+                if (arr.Count > 0)
+                {
+                    JObject json = await this.synchronizer.UploadDelete(arr.First as JObject, tableUri, http);
+                }
             }
             else
             {
