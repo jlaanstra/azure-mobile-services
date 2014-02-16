@@ -270,7 +270,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 if (value != null && value.Value != null)
                 {
                     //make sure string ids are inserted lowercase
-                    if (c.IsBuiltin && c.GetClrDataType() == typeof(string))
+                    if (c.Name.Equals("id") && c.GetClrDataType() == typeof(string))
                     {
                         value = new JValue(value.Value.ToString().ToLowerInvariant());
                     }
