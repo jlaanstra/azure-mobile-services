@@ -104,7 +104,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         }
 
         [TestMethod]
-        public async Task SynchronizeDeleteShouldAddIdToUrlAndSendEmptyBody()
+        public async Task SynchronizeDeleteShouldAddIdAndVersionToUrlAndSendEmptyBody()
         {
             ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object);
 
@@ -135,7 +135,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 
             Assert.IsNull(sendContent);
             Assert.AreEqual(HttpMethod.Delete, req.Method);
-            Assert.IsTrue(req.RequestUri.OriginalString.EndsWith("B1A60844-236A-43EA-851F-7DCD7D5755FA"));
+            Assert.IsTrue(req.RequestUri.OriginalString.EndsWith("B1A60844-236A-43EA-851F-7DCD7D5755FA?version=00000000"));
         }
 
         [TestMethod]
