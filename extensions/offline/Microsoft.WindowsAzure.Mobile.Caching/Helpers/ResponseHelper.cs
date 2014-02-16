@@ -30,7 +30,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 // result should be an array of a single item
                 // insert them as an unchanged items
                 dataForInsertion = (JArray)results;
-                foreach (JObject item in dataForInsertion)
+                foreach (JObject item in dataForInsertion.OfType<JObject>())
                 {
                     item["status"] = (int)ItemStatus.Unchanged;
                 }
