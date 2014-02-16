@@ -31,6 +31,7 @@ namespace IntegrationApp
 
         private NetworkTraffic traffic;
         private Stopwatch stopwatch;
+        private long bytesStart;
 
         public MainWindow()
         {
@@ -130,6 +131,11 @@ namespace IntegrationApp
 
         public async void StartTest(TestMethod test)
         {
+
+            this.bytesStart = this.traffic.GetBytesSent() + this.traffic.GetBytesReceived();
+            this.stopwatch.Reset();
+            this.stopwatch.Start();
+
             await Dispatcher.InvokeAsync(async () =>
             {
                 currentTest = new TestDescription { Name = test.Name };
@@ -145,8 +151,14 @@ namespace IntegrationApp
 
         public async void EndTest(TestMethod test)
         {
+            long bytesEnd = this.traffic.GetBytesSent() + this.traffic.GetBytesReceived() - bytesStart;
+            this.stopwatch.Stop();
+            TimeSpan time = this.stopwatch.Elapsed;
+
             await Dispatcher.InvokeAsync(() =>
             {
+                currentTest.Duration = time;
+                currentTest.Bytes = bytesEnd;
                 if (test.Excluded)
                 {
                     currentTest.Brush = new SolidColorBrush(Color.FromArgb(0xFF, 0x66, 0x66, 0x66));

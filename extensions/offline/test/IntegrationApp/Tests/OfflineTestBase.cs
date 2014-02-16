@@ -29,6 +29,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Test
 
             IStructuredStorage storage = new SQLiteStructuredStorage("cache.db");
             ToggableNetworkInformation network = new ToggableNetworkInformation();
+            network.IsOnline = true;
             this.NetworkInformation = network;
             ISynchronizer synchronizer = new TimestampSynchronizer(storage);
             ICacheProvider cache = new TimestampCacheProvider(storage, network, synchronizer, this.AreWeCachingThis);
