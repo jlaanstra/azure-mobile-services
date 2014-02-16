@@ -97,7 +97,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        public Task StoreData(string tableName, JArray data)
+        public Task StoreData(string tableName, JArray data, bool overwrite = true)
         {
             Debug.WriteLine("Storing data for table {0}", tableName);
 
@@ -118,7 +118,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                 foreach (JObject item in data)
                 {
-                    db.InsertIntoTable(tableName, columns, item);
+                    db.InsertIntoTable(tableName, columns, item, overwrite);
                 }
                 return completed;
             }
@@ -187,12 +187,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             Contract.Requires(items != null, "item cannot be null");
 
-            IDictionary<string, Column> cols = new Dictionary<string, Column>(defaultColumns);
+            IDictionary<string, Column> cols = new Dictionary<string, Column>();
 
             IEnumerator<IDictionary<string, JToken>> objects = items.OfType<IDictionary<string, JToken>>().GetEnumerator();
             objects.MoveNext();
-            IList<string> columnsToDetermine = objects.Current.Where(prop => !defaultColumns.ContainsKey(prop.Key))
-                .Select(p => p.Key).ToList();
+            ICollection<string> columnsToDetermine = objects.Current.Keys;
 
             do
             {
@@ -200,7 +199,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 foreach (var key in columnsToDetermine)
                 {
                     JToken token;
-                    if (objects.Current.TryGetValue(key, out token))
+                    if(defaultColumns.ContainsKey(key))
+                    {
+                        cols.Add(key, defaultColumns[key]);
+                    }
+                    else if (objects.Current.TryGetValue(key, out token))
                     {
                         JValue val = token as JValue;
                         if (val != null)

@@ -124,9 +124,27 @@
                   SelectionChanged="lstTests_SelectionChanged">
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Header="Test" Width="300" DisplayMemberBinding="{Binding Name}" />
-                    <GridViewColumn Header="Executing Time" Width="100" DisplayMemberBinding="{Binding Duration}" />
-                    <GridViewColumn Header="Data Usage" Width="100" DisplayMemberBinding="{Binding Bytes}" />
+                    <GridViewColumn Header="Test" Width="300">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}" Foreground="{Binding Brush}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Executing Time" Width="100">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Duration}" Foreground="{Binding Brush}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Data Usage" Width="100">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Bytes}" Foreground="{Binding Brush}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                 </GridView>
             </ListView.View>
         </ListView>

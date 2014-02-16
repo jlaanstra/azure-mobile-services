@@ -13,7 +13,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         Task<JArray> GetStoredData(string tableName, IQueryOptions query);
 
-        Task StoreData(string tableName, JArray data);
+        Task StoreData(string tableName, JArray data, bool overwrite = true);
 
         Task UpdateData(string tableName, JArray data);
 

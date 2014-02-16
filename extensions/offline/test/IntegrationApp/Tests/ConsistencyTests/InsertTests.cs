@@ -30,23 +30,6 @@ namespace IntegrationApp.Tests.ConsistencyTests
             {
                 await table.DeleteAsync(item);
             }
-
-            for (int i = 0; i < 10; i++)
-            {
-                await table.InsertAsync(new Product()
-                {
-                    AvailableTime = TimeSpan.FromHours(i),
-                    Id = Guid.NewGuid().ToString(),
-                    DisplayAisle = (short)(i + 10),
-                    InStock = i % 2 == 0,
-                    Name = "Product" + i,
-                    OptionFlags = (byte)i,
-                    OtherId = i,
-                    Price = 30.09M,
-                    Type = i % 2 == 0 ? ProductType.Food : ProductType.Furniture,
-                    Weight = i % 2 == 0 ? 35.7f : (float?)null,
-                });
-            }
         }
 
         [AsyncTestMethod]
@@ -193,6 +176,82 @@ namespace IntegrationApp.Tests.ConsistencyTests
             Assert.AreEqual(30.09M, product.Price);
             Assert.AreEqual(ProductType.Furniture, product.Type);
             Assert.AreEqual(35.7f, product.Weight);
+
+            this.NetworkInformation.IsOnline = true;
+        }
+
+        [AsyncTestMethod]
+        public async Task InsertWithSameIdShouldThrow()
+        {
+            IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
+
+            Guid guid = Guid.NewGuid();
+            Product product = new Product()
+            {
+                AvailableTime = TimeSpan.FromHours(2),
+                Id = guid.ToString(),
+                Version = "AAAAAAAACIQ=",
+                DisplayAisle = (short)(2 + 10),
+                InStock = true,
+                Name = "AwesomeProduct" + 2,
+                OptionFlags = (byte)5,
+                OtherId = 34,
+                Price = 30.09M,
+                Type = ProductType.Furniture,
+                Weight = 35.7f,
+            };
+
+            await table.InsertAsync(product);
+
+            Exception ex = null;
+            try
+            {
+                await table.InsertAsync(product);
+            }
+            catch(Exception e)
+            {
+                ex = e;
+            }
+
+            Assert.IsNotNull(ex);
+        }
+
+        [AsyncTestMethod]
+        public async Task InsertWithSameIdShouldThrowOffline()
+        {
+            this.NetworkInformation.IsOnline = false;
+
+            IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
+
+            Guid guid = Guid.NewGuid();
+            Product product = new Product()
+            {
+                AvailableTime = TimeSpan.FromHours(2),
+                Id = guid.ToString(),
+                Version = "AAAAAAAACIQ=",
+                DisplayAisle = (short)(2 + 10),
+                InStock = true,
+                Name = "AwesomeProduct" + 2,
+                OptionFlags = (byte)5,
+                OtherId = 34,
+                Price = 30.09M,
+                Type = ProductType.Furniture,
+                Weight = 35.7f,
+            };
+
+            await table.InsertAsync(product);
+
+            Exception ex = null;
+            try
+            {
+                await table.InsertAsync(product);
+            }
+            catch (Exception e)
+            {
+                ex = e;
+            }
+
+            Assert.IsNotNull(ex);
 
             this.NetworkInformation.IsOnline = true;
         }

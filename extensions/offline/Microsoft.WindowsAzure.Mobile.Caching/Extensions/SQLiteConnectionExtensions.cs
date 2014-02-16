@@ -199,7 +199,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        public static void InsertIntoTable(this SQLiteConnection This, string tableName, IDictionary<string, Column> columns, IDictionary<string, JToken> data)
+        public static void InsertIntoTable(this SQLiteConnection This, string tableName, IDictionary<string, Column> columns, IDictionary<string, JToken> data, bool overwrite)
         {
             int count = columns.Count;
 
@@ -212,7 +212,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             string insertStatement = builder.ToString();
 
-            string sqlStatement = string.Format("INSERT OR REPLACE INTO {0} ('{1}') VALUES ({2})",
+            string sqlStatement = string.Format(overwrite ? "INSERT OR REPLACE INTO {0} ('{1}') VALUES ({2})" : "INSERT INTO {0} ('{1}') VALUES ({2})",
                 tableName,
                 string.Join("','", columns.Keys),
                 insertStatement
@@ -225,6 +225,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 stm.BindDataToStatement(columns, data);
 
                 SQLiteResult result = stm.Step();
+                if(result == SQLiteResult.CONSTRAINT)
+                {
+                    throw new InvalidOperationException("Item already exists.");
+                }
             }
         }
 
