@@ -81,37 +81,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.CacheProviders
             Assert.IsTrue(result.ContainsKey("text"));
             Assert.AreEqual(HttpMethod.Get, request.Method);
             Assert.AreEqual(new Uri(url), request.RequestUri);
-        }
+        }        
     }
-
-    class TestStructuredStorage : IStructuredStorage
-    {
-        public JArray StoredArray { get; set; }
-
-        public Task<IDisposable> Open()
-        {
-            return Task.FromResult(Disposable.Empty);
-        }
-
-        public Task<JArray> GetStoredData(string tableName, IQueryOptions query)
-        {
-            return Task.FromResult(StoredArray);
-        }
-
-        public Task StoreData(string tableName, JArray data, bool overwrite = true)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task UpdateData(string tableName, JArray data)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task RemoveStoredData(string tableName, IEnumerable<string> guids)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
 }
