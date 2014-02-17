@@ -44,8 +44,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Contract.Requires<ArgumentNullException>(storage != null, "storage");
 
             this.storage = storage;
-
-            this.timestampsLoaded = new AsyncLazy<bool>(() => this.LoadTimestamps());
         }
 
         public async Task<JObject> DownloadChanges(Uri requestUri, IHttp http)
@@ -274,46 +272,22 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         #region Timestamps
 
-        private Dictionary<string, Tuple<string, string>> timestamps;
-
-        private Task EnsureTimestampsLoaded()
-        {
-            if (timestamps == null)
-            {
-                return this.LoadTimestamps();
-            }
-            return Task.FromResult(0);
-        }
-
-        private async Task<bool> LoadTimestamps()
-        {
-            using (await this.storage.Open())
-            {
-                JArray knownUris = await this.storage.GetStoredData("timestamp_requests", new StaticQueryOptions());
-
-                timestamps = new Dictionary<string, Tuple<string, string>>();
-                foreach (var uri in knownUris)
-                {
-                    this.timestamps.Add(uri["requesturl"].ToString(), Tuple.Create(uri["id"].ToString(), uri["__version"].ToString()));
-                }
-            }
-            return true;
-        }
+        private Dictionary<string, string> uriToId = new Dictionary<string,string>();
 
         private async Task<string> GetLastTimestampForRequest(Uri requestUri)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
 
-            //make sure the timestamps are loaded
-            await this.timestampsLoaded;
+            using (await this.storage.Open())
+            {
+                JArray knownUris = await this.storage.GetStoredData("timestamp_requests", 
+                    new StaticQueryOptions() { Filter = new FilterQuery(string.Format("requestUri eq '{0}'", Uri.EscapeDataString(requestUri.OriginalString.Replace("'", "''")))) });
 
-            Tuple<string, string> timestampTuple;
-            if (this.timestamps.TryGetValue(requestUri.OriginalString, out timestampTuple))
-            {
-                return timestampTuple.Item2;
-            }
-            else
-            {
+                foreach (var uri in knownUris)
+                {
+                    this.uriToId[uri.Value<string>("requestUri")] = uri.Value<string>("id");
+                    return uri.Value<string>("__version");
+                }
                 return null;
             }
         }
@@ -321,31 +295,25 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         private async Task SetLastTimestampForRequest(Uri requestUri, string timestamp)
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
-            Contract.Requires<InvalidOperationException>(this.timestamps != null, "Timestamps where not loaded. Make sure you called LoadTimestamps() before calling this method.");
-
-            Tuple<string, string> timestampTuple;
-            if (!this.timestamps.TryGetValue(requestUri.OriginalString, out timestampTuple))
+            
+            string id;
+            if (!this.uriToId.TryGetValue(requestUri.OriginalString, out id))
             {
                 //if not exists create new one
-                timestampTuple = Tuple.Create(Guid.NewGuid().ToString(), timestamp);
-            }
-            else
-            {
-                //if exists reuse guid key
-                timestampTuple = Tuple.Create(timestampTuple.Item1, timestamp);
+                id = Guid.NewGuid().ToString();
             }
 
             JObject item = new JObject();
-            item.Add("id", timestampTuple.Item1);
+            item.Add("id", id);
             // required column so provide default
-            item.Add("requesturl", requestUri.OriginalString);
-            item.Add("__version", timestampTuple.Item2);
+            item.Add("requestUri", requestUri.OriginalString);
+            item.Add("__version", timestamp);
             //timestamps are local only so always unchanged
             item.Add("status", (int)ItemStatus.Unchanged);
             await this.storage.StoreData("timestamp_requests", new JArray(item));
 
             //after successfull insert add locally
-            this.timestamps[requestUri.OriginalString] = timestampTuple;
+            this.uriToId[requestUri.OriginalString] = id;
         }
 
         #endregion

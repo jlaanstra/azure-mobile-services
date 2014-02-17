@@ -183,6 +183,15 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
+        public async Task Purge()
+        {
+            JArray arr = this.db.Query("SELECT name FROM sqlite_master WHERE type = 'table'", new Dictionary<string, Column>() { { "name", new Column("name", ColumnTypeHelper.GetColumnTypeForClrType(typeof(string)), false) } });
+            foreach(JObject obj in arr.OfType<JObject>())
+            {
+                this.db.DropTable(obj.Value<string>("name") ?? string.Empty);
+            }
+        }
+
         internal IDictionary<string, Column> GetColumnsFromItems(JArray items)
         {
             Contract.Requires(items != null, "item cannot be null");
