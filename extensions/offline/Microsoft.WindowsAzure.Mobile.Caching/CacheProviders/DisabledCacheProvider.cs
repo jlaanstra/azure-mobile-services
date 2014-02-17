@@ -11,5 +11,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.CacheProviders
     /// </summary>
     public class DisabledCacheProvider : BaseCacheProvider
     {
+        public override Task Purge()
+        {
+            return Task.FromResult(0);
+        }
     }
 }

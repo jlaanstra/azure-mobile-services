@@ -56,5 +56,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             return areWeCachingThis(requestUri);
         }
+
+        public override async Task Purge()
+        {
+            memCache.Clear();
+        }
     }
 }

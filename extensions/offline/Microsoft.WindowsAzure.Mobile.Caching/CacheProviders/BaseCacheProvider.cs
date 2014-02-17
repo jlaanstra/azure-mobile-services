@@ -44,5 +44,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             return false;
         }
+
+        public abstract Task Purge();
     }
 }

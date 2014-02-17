@@ -41,11 +41,13 @@ namespace IntegrationApp
             string mobileServiceOfflineRuntimeKey = Settings.Default.MobileServiceOfflineRuntimeKey;
             string mobileServiceNormalRuntimeURL = Settings.Default.MobileServiceNormalRuntimeUrl;
             string mobileServiceNormalRuntimeKey = Settings.Default.MobileServiceNormalRuntimeKey;
+            string tagExpression = Settings.Default.TagExpression;
 
             this.syncService.Text = mobileServiceOfflineRuntimeURL ?? string.Empty;
             this.syncServiceKey.Text = mobileServiceOfflineRuntimeKey ?? string.Empty;
             this.noSyncService.Text = mobileServiceNormalRuntimeURL ?? string.Empty;
             this.noSyncServiceKey.Text = mobileServiceNormalRuntimeKey ?? string.Empty;
+            this.tag.Text = tagExpression ?? string.Empty;
 
             // Setup the groups data source
             groups = new ObservableCollection<GroupDescription>();
