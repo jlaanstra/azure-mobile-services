@@ -1,48 +1,59 @@
 /// <reference path="mobileservices.intellisense.js" />
 
+var responseHelper = require('../shared/responseHelper');
+
 function read(query, user, request) {
 
-    var version = request.parameters.version;
+    var requestVersion = request.parameters.version;
 
-    var requestHasVersion = version !== undefined;
+    var requestHasVersion = requestVersion !== undefined;
+    if (!requestHasVersion) {
+        query = query.where({
+            isDeleted: false
+        });
+    } else {
+        // this shit is awesome:
+        // http://blogs.msdn.com/b/carlosfigueira/archive/2012/09/21/playing-with-the-query-object-in-read-operations-on-azure-mobile-services.aspx
+        query = query.where(function (rVersion) {
+            return this.__version > rVersion;
+        }, requestVersion);
+    }
+    // request as much items as possible
+    query = query.take(1000);
+
 
     request.execute({
         systemProperties: ['*'],
         success: function (results) {
-            var response = {};
-            if (results.totalCount !== undefined) {
-                response.count = results.totalCount;
-            }
 
             // get latest version
             mssql.query("SELECT @@DBTS", {
                 success: function (result) {
-                    response.__version = result[0].Column0.toString('base64');
-
+                    var responseVersion = result[0].Column0.toString('base64');
                     var deleted = [];
                     var nondeleted = [];
 
+                    console.log("result: " + results.length);
+                    console.log("requestHasVersion: " + requestHasVersion);
+
                     results.map(function (r) {
-                        var isDeleted = r.isDeleted;
-                        delete r.isDeleted;
-                        if (!requestHasVersion) {
-                            if (!isDeleted) {
-                                nondeleted.push(r);
-                            }
+                        if (!r.isDeleted) {
+                            nondeleted.push(r);
                         }
-                        else if (r.__version > version) {
-                            if (!isDeleted) {
-                                nondeleted.push(r);
-                            }
-                            else {
-                                deleted.push(r.guid);
-                            }
+                        else {
+                            deleted.push(r.id);
                         }
                     });
 
-                    response.results = nondeleted;
-                    response.deleted = deleted;
-                    request.respond(200, response);
+                    var params = {};
+                    if (results.totalCount !== undefined) {
+                        params.count = results.totalCount;
+                    }
+
+                    console.log("nondeleted: " + nondeleted.length);
+                    console.log("deleted: " + deleted.length);
+
+                    responseHelper.sendSuccessResponse(request, responseVersion, nondeleted, deleted, params);
                 },
                 error: function (err) {
                     console.error("Error occurred. Details:", err);
