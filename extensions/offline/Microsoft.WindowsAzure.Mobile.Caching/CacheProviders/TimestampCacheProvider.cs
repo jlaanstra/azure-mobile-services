@@ -26,7 +26,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <summary>
         /// Initializes a new instance of the <see cref="TimestampCacheProvider"/> class.
         /// </summary>
-        /// <param name="storage">The storage.</param>
+        /// <param name="storage">The storage for this cacheprovider.</param>
         /// <param name="network">The network.</param>
         /// <param name="synchronizer">The synchronizer.</param>
         /// <param name="areWeCachingThis">The are we caching this.</param>
@@ -219,7 +219,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                 using (await this.storage.Open())
                 {
-                    JArray arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", id)) });
+                    JArray arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(id))) });
                     if (arr.Count > 0 && arr.First.Value<int>("status") == (int)ItemStatus.Unchanged)
                     {
                         //set status to changed
@@ -258,7 +258,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 JArray arr = new JArray();
                 using (await this.storage.Open())
                 {
-                    arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", id)) });
+                    arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(id.Replace("'", "''")))) });
                 }
                 if (arr.Count > 0)
                 {
@@ -273,7 +273,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 // we can just remove it locally and the server will never know about its existence
                 using (await this.storage.Open())
                 {
-                    JArray arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", id)) });
+                    JArray arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(id.Replace("'", "''")))) });
                     if (arr.Count > 0 && arr.First.Value<int>("status") == (int)ItemStatus.Unchanged)
                     {
                         //update status of current item 
@@ -302,6 +302,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         public override bool ProvidesCacheForRequest(Uri requestUri)
         {
             return requestUri.OriginalString.Contains("/tables/") && areWeCachingThis(requestUri);
-        }        
+        }
+
+        public override async Task Purge()
+        {
+            using (await this.storage.Open())
+            {
+                await this.storage.Purge();
+            }
+        }
     }
 }
