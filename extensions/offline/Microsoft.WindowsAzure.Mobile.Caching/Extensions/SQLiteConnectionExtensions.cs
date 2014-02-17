@@ -108,7 +108,28 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             using (ISQLiteStatement stm = This.Prepare(sqlStatement))
             {
                 SQLiteResult result = stm.Step();
+                if (result != SQLiteResult.DONE)
+                {
+                    throw new InvalidOperationException(result.ToString());
+                }
             }
+        }
+
+        public static void DropTable(this SQLiteConnection This, string tableName)
+        {
+            string sqlStatement = string.Format("DROP TABLE IF EXISTS {0}", tableName);
+
+            Debug.WriteLine(sqlStatement);
+
+            using (ISQLiteStatement stm = This.Prepare(sqlStatement))
+            {
+                SQLiteResult result = stm.Step();
+                if (result != SQLiteResult.DONE)
+                {
+                    throw new InvalidOperationException(result.ToString());
+                }
+            }
+
         }
 
         public static void CreateIndex(this SQLiteConnection This, string tableName, string columnName)
@@ -120,6 +141,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             using (ISQLiteStatement stm = This.Prepare(sqlStatement))
             {
                 SQLiteResult result = stm.Step();
+                if (result != SQLiteResult.DONE)
+                {
+                    throw new InvalidOperationException(result.ToString());
+                }
             }
         }
 
@@ -155,6 +180,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             using (ISQLiteStatement stm = This.Prepare(sqlStatement))
             {
                 SQLiteResult result = stm.Step();
+                if (result != SQLiteResult.DONE)
+                {
+                    throw new InvalidOperationException(result.ToString());
+                }
             }
         }
 
@@ -260,6 +289,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 stm.BindDataToStatement(columns, data);
 
                 SQLiteResult result = stm.Step();
+                if (result != SQLiteResult.DONE)
+                {
+                    throw new InvalidOperationException(result.ToString());
+                }
             }
         }
 
@@ -326,6 +359,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 }
 
                 SQLiteResult result = stm.Step();
+                if (result != SQLiteResult.DONE)
+                {
+                    throw new InvalidOperationException(result.ToString());
+                }
             }
         }
     }
