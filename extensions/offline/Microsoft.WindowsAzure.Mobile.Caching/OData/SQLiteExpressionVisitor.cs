@@ -160,11 +160,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 || type == typeof(ulong) || type == typeof(uint) || type == typeof(ushort) || type == typeof(double)
                 || type == typeof(float) || type == typeof(decimal))
             {
-                this.sqlBuilder.Append((int)expr.Value);
+                this.sqlBuilder.Append(expr.Value);
             }
             else
             {
-                this.sqlBuilder.AppendFormat("'{0}'", expr.Value);
+                this.sqlBuilder.AppendFormat("'{0}'", expr.Value.ToString().Replace("'", "''"));
             }
 
             return expr;
