@@ -472,7 +472,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             this.ValidateToken(TokenId.StringLiteral);
             // Unwrap string (remove surrounding quotes)
-            string s = this.token.Text;
+            string s = Uri.UnescapeDataString(this.token.Text);
             if (TryRemoveQuotes(ref s))
             {
                 this.NextToken();
