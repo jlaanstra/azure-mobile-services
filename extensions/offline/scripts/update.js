@@ -2,6 +2,7 @@
 
 var responseHelper = require('../shared/responseHelper');
 var conflicts = require('../shared/conflicts');
+var async = require('async');
 
 function update(item, user, request) {
 
@@ -18,8 +19,13 @@ function update(item, user, request) {
         return;
     }
 
+    //configurable conflict resolution
+    var resolveStrategy = request.parameters.resolveStrategy;
+    if (resolveStrategy === undefined) {
+        resolveStrategy = "latestWriteWins";
+    }
+
     var processResult = function (results) {
-        console.log(results);
 
         if (!Array.isArray(results)) {
             results = [results];
@@ -31,29 +37,41 @@ function update(item, user, request) {
             if (!r.isDeleted) {
                 nondeleted.push(r);
             } else {
-                deleted.push(r.guid);
+                deleted.push(r.id);
             }
         });
-        responseHelper.sendSuccessResponse(request, "", nondeleted, deleted, {});
+        responseHelper.sendSuccessResponse(request, "", nondeleted, deleted, { conflictResolved: resolveStrategy });
     }
 
     var processResolution = function (results) {
         if (!Array.isArray(results)) {
             results = [results];
         }
-
-        for (var item in results) {
+        
+        function updateItem(item, callback) {
             delete item.__version;
             tables.current.update(item, {
-                success: function () { },
+                systemProperties: ['*'],
+                success: function () {
+                    callback(null, item);
+                },
                 error: function (err) {
-                    console.error("Error occurred. Details:", err);
-                    request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
+                    callback(err, null);
                 }
             });
         }
 
-        processResult(results);
+        function done(err, updatedResults) {
+            if (err !== null) {
+                console.error("Error occurred. Details:", err);
+                request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
+            }
+            else {
+                processResult(updatedResults);
+            }
+        }
+
+        async.map(results, updateItem, done);
     }
 
     request.execute({
@@ -62,13 +80,19 @@ function update(item, user, request) {
             processResult(item);
         },
         conflict: function (serverItem) {
-            processResolution(conflicts.resolveConflictOnServer(serverItem, item, conflicts.latestWriteWins));
-            //conflicts.resolveConflictOnClient(request, serverItem, item);
+            item.isDeleted = false;
+
+            //configurable conflict resolution
+            if (resolveStrategy === "client") {
+                conflicts.resolveConflictOnClient(request, serverItem, item);
+            }
+            else {
+                processResolution(conflicts.resolveConflictOnServer(serverItem, item, conflicts[resolveStrategy]));
+            }
         },
         error: function (err) {
             console.error("Error occurred. Details:", err);
             request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
         }
     });
-
 }
