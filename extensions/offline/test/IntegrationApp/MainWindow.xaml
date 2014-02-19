@@ -101,6 +101,7 @@
             <StackPanel Orientation="Horizontal">
                 <Button x:Name="runTests" Content="Run Tests" Margin="0,6,6,0" Click="RunTests_Click" />
                 <TextBox x:Name="tag" Width="100" Margin="0,6,6,0"/>
+                <Button x:Name="saveResults" Content="Save Results" Margin="0,6,6,0" Click="SaveResults_Click" />
             </StackPanel>
         </StackPanel>
         <StackPanel Grid.Row="1" Margin="6">
