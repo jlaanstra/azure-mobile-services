@@ -27,12 +27,12 @@ namespace Microsoft.WindowsAzure.MobileServices.Test
             string normalRuntimeUrl = this.GetTestSetting("MobileServiceNormalRuntimeUrl");
             string normalRuntimeKey = this.GetTestSetting("MobileServiceNormalRuntimeKey");
 
-            IStructuredStorage storage = new SQLiteStructuredStorage("cache.db");
+            this.Storage = new SQLiteStructuredStorage("cache.db");
             ToggableNetworkInformation network = new ToggableNetworkInformation();
             network.IsOnline = true;
             this.NetworkInformation = network;
-            ISynchronizer synchronizer = new TimestampSynchronizer(storage);
-            this.CacheProvider = new TimestampCacheProvider(storage, network, synchronizer, this.AreWeCachingThis);
+            ISynchronizer synchronizer = new TimestampSynchronizer(this.Storage);
+            this.CacheProvider = new TimestampCacheProvider(this.Storage, network, synchronizer, this.AreWeCachingThis);
 
             this.OfflineClient = new MobileServiceClient(offlineRuntimeUrl, offlineRuntimeKey, new LoggingHttpHandler(this), new CacheHandler(this.CacheProvider));
 
@@ -48,6 +48,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Test
         public ToggableNetworkInformation NetworkInformation { get; private set; }
 
         public ICacheProvider CacheProvider { get; private set; }
+
+        public IStructuredStorage Storage { get; private set; }
 
         protected virtual bool AreWeCachingThis(Uri uri)
         {
