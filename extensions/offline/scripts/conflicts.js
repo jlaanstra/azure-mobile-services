@@ -32,11 +32,18 @@ conflictType = {
 
 // strategies
 
-// last write wins strategy
+// lastest write wins strategy
 exports.latestWriteWins = function (currentItem, newItem) {
-    // deleted items do not change
-    if (currentItem.isDeleted) {
-        return currentItem;
-    }
     return newItem;
+}
+
+// server wins strategy
+exports.serverWins = function (currentItem, newItem) {
+    return currentItem;
+}
+
+// server wins strategy
+exports.duplicationApply = function (currentItem, newItem) {
+    delete newItem.id;
+    return [currentItem, newItem];
 }

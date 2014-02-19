@@ -33,9 +33,6 @@ function read(query, user, request) {
                     var deleted = [];
                     var nondeleted = [];
 
-                    console.log("result: " + results.length);
-                    console.log("requestHasVersion: " + requestHasVersion);
-
                     results.map(function (r) {
                         if (!r.isDeleted) {
                             nondeleted.push(r);
@@ -49,9 +46,6 @@ function read(query, user, request) {
                     if (results.totalCount !== undefined) {
                         params.count = results.totalCount;
                     }
-
-                    console.log("nondeleted: " + nondeleted.length);
-                    console.log("deleted: " + deleted.length);
 
                     responseHelper.sendSuccessResponse(request, responseVersion, nondeleted, deleted, params);
                 },
