@@ -24,9 +24,8 @@ namespace IntegrationApp.Tests.DataContextTests
             // Make sure the table is empty
             IMobileServiceTable<Product> table = client.GetTable<Product>();
             IEnumerable<Product> results = await table.ReadAsync();
-            Product[] items = results.ToArray();
 
-            foreach (Product item in items)
+            foreach (Product item in results)
             {
                 await table.DeleteAsync(item);
             }
@@ -49,7 +48,6 @@ namespace IntegrationApp.Tests.DataContextTests
             }
         }
 
-        [Tag("test")]
         [AsyncTestMethod]
         public async Task OfflineQueryUsesCachedData()
         {
