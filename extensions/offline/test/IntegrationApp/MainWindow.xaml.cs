@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Microsoft.Win32;
 using Microsoft.WindowsAzure.MobileServices.Test;
 using Microsoft.WindowsAzure.MobileServices.TestFramework;
 
@@ -80,6 +82,32 @@ namespace IntegrationApp
             Settings.Default.Save();
 
             Task.Factory.StartNew(() => App.Harness.RunAsync());
+        }
+
+        private void SaveResults_Click(object sender, RoutedEventArgs e)
+        {
+            SaveFileDialog sfd = new SaveFileDialog()
+            {
+                Title = "Choose file to save to",
+                FileName = "example.csv",
+                Filter = "CSV (*.csv)|*.csv",
+                FilterIndex = 0,
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            };
+
+            if(sfd.ShowDialog() == true)
+            {
+                using(Stream file = File.OpenWrite(sfd.FileName))
+                {
+                    using(StreamWriter writer = new StreamWriter(file))
+                    {
+                        foreach(TestDescription t in this.tests)
+                        {
+                            writer.WriteLine(string.Format("{0},{1},{2}", t.Name, t.Duration, t.Bytes));
+                        }
+                    }
+                }
+            }
         }
 
         public async void StartRun(TestHarness harness)
