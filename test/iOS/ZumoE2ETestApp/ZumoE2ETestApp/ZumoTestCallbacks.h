@@ -1,16 +1,15 @@
-//
-//  ZumoTestCallbacks.h
-//  ZumoE2ETestApp
-//
-//  Copyright (c) 2012 Microsoft. All rights reserved.
-//
+// ----------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// ----------------------------------------------------------------------------
 
 #import <Foundation/Foundation.h>
+
+typedef enum { TSNotRun, TSRunning, TSSkipped, TSFailed, TSPassed } TestStatus;
 
 @protocol ZumoTestCallbacks <NSObject>
 
 @required
 - (void)zumoTestStarted:(NSString *)testName;
-- (void)zumoTestFinished:(NSString *)testName withResult:(BOOL)testResult;
+- (void)zumoTestFinished:(NSString *)testName withResult:(TestStatus)testResult;
 
 @end

@@ -1,11 +1,9 @@
-//
-//  ZumoLogUpdater.m
-//  ZumoE2ETestApp
-//
-//  Copyright (c) 2012 Microsoft. All rights reserved.
-//
+// ----------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// ----------------------------------------------------------------------------
 
 #import "ZumoLogUpdater.h"
+#import "ZumoTestGlobals.h"
 
 @interface ZumoLogUpdater () <NSURLConnectionDelegate>
 {
@@ -17,8 +15,24 @@
 
 @implementation ZumoLogUpdater
 
--(void)uploadLogs:(NSString *)logText toUrl:(NSString *)url {
-    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:url]];
+-(void)uploadLogs:(NSString *)logText toUrl:(NSString *)url allTests:(BOOL)allTests {
+    NSString *urlWithPlatform = [url stringByAppendingString:@"?platform=iOS"];
+    if (allTests) {
+        urlWithPlatform = [urlWithPlatform stringByAppendingString:@"&allTests=true"];
+    }
+    
+    NSString *runtimeVersion = [[[ZumoTestGlobals sharedInstance] globalTestParameters] objectForKey:RUNTIME_VERSION_KEY];
+    NSString *clientVersion = [[[ZumoTestGlobals sharedInstance] globalTestParameters] objectForKey:CLIENT_VERSION_KEY];
+    if (runtimeVersion) {
+        urlWithPlatform = [urlWithPlatform stringByAppendingString:@"&runtimeVersion="];
+        urlWithPlatform = [urlWithPlatform stringByAppendingString:runtimeVersion];
+    }
+    if (clientVersion) {
+        urlWithPlatform = [urlWithPlatform stringByAppendingString:@"&clientVersion="];
+        urlWithPlatform = [urlWithPlatform stringByAppendingString:clientVersion];
+    }
+
+    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:urlWithPlatform]];
     [request setHTTPMethod:@"POST"];
     [request setHTTPBody:[logText dataUsingEncoding:NSUTF8StringEncoding]];
     [request setValue:@"text/plain" forHTTPHeaderField:@"Content-Type"];

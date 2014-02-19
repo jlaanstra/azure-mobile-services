@@ -32,6 +32,12 @@ public abstract class TestGroup {
 	ConcurrentLinkedQueue<TestCase> mTestRunQueue;
 	boolean mNewTestRun;
 	
+	public static final String AllTestsGroupName = "All tests";
+	public static final String AllUnattendedTestsGroupName = AllTestsGroupName + " (unattended)";
+	
+	public static final String ClientVersionKey = "client-version";
+	public static final String ServerVersionKey = "server-version";
+
 	public TestGroup(String name) {
 		mName = name;
 		mStatus = TestStatus.NotRun;

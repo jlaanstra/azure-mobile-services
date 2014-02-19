@@ -1,9 +1,6 @@
-//
-//  ZumoCUDTests.m
-//  ZumoE2ETestApp
-//
-//  Copyright (c) 2012 Microsoft. All rights reserved.
-//
+// ----------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// ----------------------------------------------------------------------------
 
 #import "ZumoCUDTests.h"
 #import "ZumoTest.h"
@@ -13,6 +10,7 @@
 @implementation ZumoCUDTests
 
 static NSString *tableName = @"iosRoundTripTable";
+static NSString *stringIdTableName = @"stringIdRoundTripTable";
 
 + (NSArray *)createTests {
     NSMutableArray *result = [[NSMutableArray alloc] init];
@@ -22,9 +20,92 @@ static NSString *tableName = @"iosRoundTripTable";
     [result addObject:[self createDeleteTestWithName:@"(Neg) Delete with object and non-existent id" andType:NegDeleteObjectInvalidId]];
     [result addObject:[self createDeleteTestWithName:@"(Neg) Delete with object without 'id' field" andType:NegDeleteObjectNoId]];
     
+    NSArray *validStringIds = @[@"iOS with space", @"random number", @"iOS non-english ãéìôü ÇñÑالكتاب على الطاولة这本书在桌子上הספר הוא על השולחן"];
+    for (NSString *validId in validStringIds) {
+        for (int i = 0; i < 2; i++) {
+            BOOL useDeleteWithId = i == 0;
+            NSString *testName = [NSString stringWithFormat:@"[string id] Delete (%@), id = %@", useDeleteWithId ? @"by id" : @"by object", validId];
+            [result addObject:[ZumoTest createTestWithName:testName andExecution:^(ZumoTest *test, UIViewController *viewController, ZumoTestCompletion completion) {
+                NSString *itemId;
+                if ([validId isEqualToString:@"random number"]) {
+                    itemId = [NSString stringWithFormat:@"%d", rand()];
+                } else {
+                    itemId = validId;
+                }
+                [test addLog:[@"Using id = " stringByAppendingString:itemId]];
+                MSClient *client = [[ZumoTestGlobals sharedInstance] client];
+                MSTable *table = [client tableWithName:stringIdTableName];
+                [table insert:@{@"id":itemId,@"name":@"unused"} completion:^(NSDictionary *item, NSError *error) {
+                    // it's fine if the insert failed (possible if the item already existed.
+                    
+                    [test addLog:@"Calling delete"];
+                    MSDeleteBlock deleteCompletion = ^(id deletedItemId, NSError *error) {
+                        if (error) {
+                            [test addLog:[NSString stringWithFormat:@"Error calling delete: %@", error]];
+                            completion(NO);
+                        } else {
+                            [test addLog:[NSString stringWithFormat:@"Delete succeeded for item: %@", deletedItemId]];
+                            completion(YES);
+                        }
+                    };
+                    if (useDeleteWithId) {
+                        [table deleteWithId:itemId completion:deleteCompletion];
+                    } else {
+                        [table delete:@{@"id":itemId,@"name":@"unused"} completion:deleteCompletion];
+                    }
+                }];
+            }]];
+        }
+    }
+
     [result addObject:[self createUpdateTestWithName:@"Update item" andType:UpdateUsingObject]];
     [result addObject:[self createUpdateTestWithName:@"(Neg) Update with non-existing id" andType:NegUpdateObjectInvalidId]];
     [result addObject:[self createUpdateTestWithName:@"(Neg) Update with no id" andType:NegUpdateObjectNoId]];
+    
+    for (NSString *validId in validStringIds) {
+        NSString *testName = [@"[string id] Update with id = " stringByAppendingString:validId];
+        [result addObject:[ZumoTest createTestWithName:testName andExecution:^(ZumoTest *test, UIViewController *viewController, ZumoTestCompletion completion) {
+            NSString *itemId;
+            if ([validId isEqualToString:@"random number"]) {
+                itemId = [NSString stringWithFormat:@"%d", rand()];
+            } else {
+                itemId = validId;
+            }
+            [test addLog:[@"Using id = " stringByAppendingString:itemId]];
+            MSClient *client = [[ZumoTestGlobals sharedInstance] client];
+            MSTable *table = [client tableWithName:stringIdTableName];
+            [table insert:@{@"id":itemId,@"name":@"unused"} completion:^(NSDictionary *item, NSError *error) {
+                // it's fine if the insert failed (possible if the item already existed.
+                NSDictionary *toUpdate = @{@"id":itemId,@"name":@"another value"};
+                [table update:toUpdate completion:^(NSDictionary *updated, NSError *error) {
+                    BOOL testPassed;
+                    if (error) {
+                        [test addLog:[NSString stringWithFormat:@"Error calling delete: %@", error]];
+                        testPassed = NO;
+                    } else {
+                        [test addLog:[NSString stringWithFormat:@"Updated: %@", updated]];
+                        NSMutableArray *errors = [[NSMutableArray alloc] init];
+                        if ([ZumoTestGlobals compareObjects:toUpdate with:updated log:errors]) {
+                            [test addLog:@"Object compared successfully"];
+                            testPassed = YES;
+                        } else {
+                            [test addLog:@"Error comparing the objects:"];
+                            for (NSString *err in errors) {
+                                [test addLog:err];
+                            }
+                            testPassed = NO;
+                        }
+                    }
+                    
+                    [test addLog:@"Cleanup: deleting the item"];
+                    [table deleteWithId:itemId completion:^(id itemId, NSError *error) {
+                        [test addLog:[@"Delete " stringByAppendingString:(error ? @"failed" : @"succeeded")]];
+                        completion(testPassed);
+                    }];
+                }];
+            }];
+        }]];
+    }
     
     return result;
 }
@@ -34,7 +115,7 @@ typedef enum { UpdateUsingObject, NegUpdateObjectInvalidId, NegUpdateObjectNoId 
 + (ZumoTest *)createUpdateTestWithName:(NSString *)name andType:(UpdateTestType)type {
     ZumoTest *result = [ZumoTest createTestWithName:name andExecution:^(ZumoTest *test, UIViewController *viewController, ZumoTestCompletion completion) {
         MSClient *client = [[ZumoTestGlobals sharedInstance] client];
-        MSTable *table = [client getTable:tableName];
+        MSTable *table = [client tableWithName:tableName];
         [table insert:@{@"name":@"John Doe",@"age":[NSNumber numberWithInt:33]} completion:^(NSDictionary *inserted, NSError *insertError) {
             if (insertError) {
                 [test addLog:[NSString stringWithFormat:@"Error inserting data: %@", insertError]];
@@ -134,7 +215,7 @@ typedef enum { DeleteUsingId, DeleteUsingObject, NegDeleteUsingInvalidId, NegDel
 + (ZumoTest *)createDeleteTestWithName:(NSString *)name andType:(DeleteTestType)type {
     ZumoTest *result = [ZumoTest createTestWithName:name andExecution:^(ZumoTest *test, UIViewController *viewController, ZumoTestCompletion completion) {
         MSClient *client = [[ZumoTestGlobals sharedInstance] client];
-        MSTable *table = [client getTable:tableName];
+        MSTable *table = [client tableWithName:tableName];
         [table insert:@{@"name":@"John Doe",@"age":[NSNumber numberWithInt:33]} completion:^(NSDictionary *inserted, NSError *insertError) {
             if (insertError) {
                 [test addLog:[NSString stringWithFormat:@"Error inserting data: %@", insertError]];
@@ -250,14 +331,8 @@ typedef enum { DeleteUsingId, DeleteUsingObject, NegDeleteUsingInvalidId, NegDel
     }];
 }
 
-+ (NSString *)helpText {
-    NSArray *lines = [NSArray arrayWithObjects:
-                      @"1. Create an application on Windows azure portal.",
-                      @"2. Create a table called 'iOSRoundTripTable'.",
-                      @"3. Add Valid Application URL and Application Key.",
-                      @"4. Run the 'Create/Update/Delete' tests.",
-                      @"5. Make sure all the scenarios pass.", nil];
-    return [lines componentsJoinedByString:@"\n"];
++ (NSString *)groupDescription {
+    return @"Tests for validating update and delete operations";
 }
 
 @end

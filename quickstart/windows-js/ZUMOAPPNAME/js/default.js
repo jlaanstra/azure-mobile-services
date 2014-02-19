@@ -5,7 +5,6 @@
 
     var app = WinJS.Application;
     var activation = Windows.ApplicationModel.Activation;
-    WinJS.strictProcessing();
 
     app.onactivated = function (args) {
         if (args.detail.kind === activation.ActivationKind.launch) {
@@ -20,11 +19,11 @@
 
             // This MobileServiceClient has been configured to communicate with your Mobile Service's url
             // and application key. You're all set to start working with your Mobile Service!
-            var client = new Microsoft.WindowsAzure.MobileServices.MobileServiceClient(
+            var client = new WindowsAzure.MobileServiceClient(
                 "ZUMOAPPURL",
                 "ZUMOAPPKEY"
             );
-            
+
             var todoTable = client.getTable('TodoItem');
             var todoItems = new WinJS.Binding.List();
 
@@ -70,11 +69,10 @@
                 var todoItem = eventArgs.target.dataContext.backingData;
                 todoItem.complete = eventArgs.target.checked;
                 updateCheckedTodoItem(todoItem);
-                
+
             });
 
             refreshTodoItems();
-
         }
     };
 

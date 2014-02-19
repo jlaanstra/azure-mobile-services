@@ -1,9 +1,6 @@
-//
-//  ZumoMiscTests.m
-//  ZumoE2ETestApp
-//
-//  Copyright (c) 2012 Microsoft. All rights reserved.
-//
+// ----------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// ----------------------------------------------------------------------------
 
 #import "ZumoMiscTests.h"
 #import "ZumoTest.h"
@@ -39,15 +36,21 @@
     return self;
 }
 
-- (void)handleRequest:(NSURLRequest *)request onNext:(MSFilterNextBlock)onNext onResponse:(MSFilterResponseBlock)onResponse {
+- (void)handleRequest:(NSURLRequest *)request next:(MSFilterNextBlock)onNext response:(MSFilterResponseBlock)onResponse {
     NSDictionary *headers = [request allHTTPHeaderFields];
     _requestHeaders = [NSMutableDictionary new];
     [_requestHeaders setValuesForKeysWithDictionary:headers];
     userAgent = request.allHTTPHeaderFields[@"User-Agent"];
+    NSString *clientVersion = [NSString stringWithFormat:@"%d.%d.%d.0", WindowsAzureMobileServicesSdkMajorVersion, WindowsAzureMobileServicesSdkMinorVersion, WindowsAzureMobileServicesSdkBuildVersion];
+    [[[ZumoTestGlobals sharedInstance] globalTestParameters] setObject:clientVersion forKey:CLIENT_VERSION_KEY];
     onNext(request, ^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
         NSDictionary *respHeaders = [response allHeaderFields];
         _responseHeaders = [NSMutableDictionary new];
         [_responseHeaders setValuesForKeysWithDictionary:respHeaders];
+        NSString *runtimeVersion = [_responseHeaders objectForKey:@"x-zumo-version"];
+        if (runtimeVersion) {
+            [[[ZumoTestGlobals sharedInstance] globalTestParameters] setObject:runtimeVersion forKey:RUNTIME_VERSION_KEY];
+        }
         _responseContent = [NSData dataWithData:data];
         onResponse(response, data, error);
     });
@@ -69,7 +72,7 @@
 
 @synthesize statusCode, contentType, body, errorToReturn;
 
-- (void)handleRequest:(NSURLRequest *)request onNext:(MSFilterNextBlock)onNext onResponse:(MSFilterResponseBlock)onResponse {
+- (void)handleRequest:(NSURLRequest *)request next:(MSFilterNextBlock)onNext response:(MSFilterResponseBlock)onResponse {
     NSHTTPURLResponse *resp = nil;
     NSData *data = nil;
     NSError *error = nil;
@@ -122,7 +125,7 @@
     }
 }
 
-- (void)handleRequest:(NSURLRequest *)request onNext:(MSFilterNextBlock)onNext onResponse:(MSFilterResponseBlock)onResponse {
+- (void)handleRequest:(NSURLRequest *)request next:(MSFilterNextBlock)onNext response:(MSFilterResponseBlock)onResponse {
     onNext(request, ^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
         [self addResponseToLog:response forRequest:request];
         if (_numberOfRequests == 1) {
@@ -156,10 +159,121 @@
 
 @end
 
+// Filter which will save the User-Agent request header
+@interface FilterToSimulateOptimisticConcurrency : NSObject <MSFilter>
+
+@end
+
+@implementation FilterToSimulateOptimisticConcurrency
+
+- (void)handleRequest:(NSURLRequest *)request next:(MSFilterNextBlock)onNext response:(MSFilterResponseBlock)onResponse {
+
+    // Append __systemProperties=* to request URI
+    NSString *url = [[request URL] absoluteString];
+    NSString *query, *urlWithoutQuery;
+    NSRange indexOfQuery = [url rangeOfString:@"?"];
+    if (indexOfQuery.location == NSNotFound) {
+        query = @"";
+        urlWithoutQuery = url;
+    } else {
+        query = [url substringFromIndex:(indexOfQuery.location + 1)];
+        query = [query stringByAppendingString:@"&"];
+        urlWithoutQuery = [url substringToIndex:indexOfQuery.location];
+    }
+    urlWithoutQuery = [urlWithoutQuery stringByAppendingString:@"?"];
+    query = [query stringByAppendingString:@"__systemProperties=*"];
+    url = [urlWithoutQuery stringByAppendingString:query];
+
+    // Clone the request and headers
+    NSMutableURLRequest *newRequest = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:url]];
+    NSString *HTTPMethod = [request HTTPMethod];
+    [newRequest setHTTPMethod:HTTPMethod];
+    NSDictionary *requestHeaders = [request allHTTPHeaderFields];
+    for (NSString *headerName in [requestHeaders keyEnumerator]) {
+        NSString *headerValue = [requestHeaders objectForKey:headerName];
+        [newRequest setValue:headerValue forHTTPHeaderField:headerName];
+    }
+    [newRequest setHTTPBody:[request HTTPBody]];
+    
+    // Remove the system properties from the request
+    if ([HTTPMethod isEqualToString:@"PUT"] || [HTTPMethod isEqualToString:@"PATCH"]) {
+        NSError *error;
+        NSData *requestBody = [request HTTPBody];
+        id body = [NSJSONSerialization JSONObjectWithData:requestBody options:0 error:&error];
+        if (error) {
+            onResponse(nil, nil, error);
+            return;
+        }
+        if ([body isKindOfClass:[NSDictionary class]]) {
+            NSDictionary *item = body;
+            NSString *version = nil;
+            NSMutableDictionary *newItem = [[NSMutableDictionary alloc] init];
+            BOOL propertyRemoved = NO;
+            for (NSString *key in [item allKeys]) {
+                if ([key hasPrefix:@"__"]) {
+                    propertyRemoved = YES;
+                    if ([key isEqualToString:@"__version"]) {
+                        version = [item objectForKey:key];
+                    }
+                } else {
+                    [newItem setValue:[item objectForKey:key] forKey:key];
+                }
+            }
+            
+            if (version) {
+                NSString *etag = [NSString stringWithFormat:@"\"%@\"", version];
+                [newRequest setValue:etag forHTTPHeaderField:@"If-Match"];
+            }
+            
+            if (propertyRemoved) {
+                NSData *newBody = [NSJSONSerialization dataWithJSONObject:newItem options:0 error:&error];
+                if (error) {
+                    onResponse(nil, nil, error);
+                    return;
+                }
+                [newRequest setHTTPBody:newBody];
+            }
+        }
+    }
+
+    // Now send the updated request
+    onNext(newRequest, ^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
+        if (error) {
+            onResponse(response, data, error);
+            return;
+        }
+
+        // Move the response ETag header into a __version field
+        NSDictionary *respHeaders = [response allHeaderFields];
+        NSString *contentType = [respHeaders objectForKey:@"Content-Type"];
+        if ([contentType isEqualToString:@"application/json"]) {
+            NSString *etag = [respHeaders objectForKey:@"ETag"];
+            if (etag && data) {
+                if ([etag hasPrefix:@"\""]) etag = [etag substringFromIndex:1];
+                if ([etag hasSuffix:@"\""]) etag = [etag substringToIndex:([etag length] - 1)];
+                id body = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
+                if (!error) {
+                    if ([body isKindOfClass:[NSDictionary class]]) {
+                        NSMutableDictionary *item = [[NSMutableDictionary alloc] initWithDictionary:body];
+                        [item setValue:etag forKey:@"__version"];
+                        data = [NSJSONSerialization dataWithJSONObject:item options:0 error:&error];
+                        if (error) data = nil;
+                    }
+                }
+            }
+        }
+
+        onResponse(response, data, error);
+    });
+}
+
+@end
+
 // Main implementation
 @implementation ZumoMiscTests
 
 static NSString *tableName = @"iOSRoundTripTable";
+static NSString *stringIdTableName = @"stringIdRoundTripTable";
 static NSString *parameterTestTableName = @"ParamsTestTable";
 
 + (NSArray *)createTests {
@@ -169,23 +283,61 @@ static NSString *parameterTestTableName = @"ParamsTestTable";
     [result addObject:[self createFilterTestWhichBypassesService]];
     [result addObject:[self createFilterTestToEnsureWithFilterDoesNotChangeClient]];
     [result addObject:[self createParameterPassingTest]];
+    [result addObject:[self createOptimisticConcurrencyWithFilterTest]];
     return result;
 }
 
-+ (NSString *)helpText {
-    NSArray *lines = [NSArray arrayWithObjects:
-                      @"1. Create an application on Windows azure portal.",
-                      @"2. Create a table called 'iOSRoundTripTable'.",
-                      @"3. Click on the 'Misc Tests' button.",
-                      @"4. Make sure all the tests pass.",
-                      nil];
-    return [lines componentsJoinedByString:@"\n"];
++ (ZumoTest *)createOptimisticConcurrencyWithFilterTest {
+    return [ZumoTest createTestWithName:@"Using filters to access optimistic concurrency feature" andExecution:^(ZumoTest *test, UIViewController *viewController, ZumoTestCompletion completion) {
+        MSClient *client = [[ZumoTestGlobals sharedInstance] client];
+        client = [client clientWithFilter:[[FilterToSimulateOptimisticConcurrency alloc] init]];
+        MSTable *table = [client tableWithName:stringIdTableName];
+        NSDictionary *item = @{@"name":@"John Doe",@"number":@123};
+        [table insert:item completion:^(NSDictionary *inserted, NSError *error) {
+            if (error) {
+                [test addLog:[NSString stringWithFormat:@"Error inserting first item: %@", error]];
+                completion(NO);
+                return;
+            }
+            
+            [test addLog:[NSString stringWithFormat:@"Inserted: %@", inserted]];
+            id itemId = [inserted objectForKey:@"id"];
+            NSMutableDictionary *toUpdate = [[NSMutableDictionary alloc] initWithDictionary:inserted];
+            [toUpdate setValue:@"Jane Roe" forKey:@"name"];
+            [table update:toUpdate completion:^(NSDictionary *updated, NSError *error) {
+                if (error) {
+                    [test addLog:[NSString stringWithFormat:@"Error updating item: %@", error]];
+                    completion(NO);
+                    return;
+                }
+
+                [test addLog:[NSString stringWithFormat:@"Updated: %@", updated]];
+                [test addLog:@"Now updating with incorrect version"];
+                [toUpdate setValue:@"incorrect" forKey:@"__version"];
+                [table update:toUpdate completion:^(NSDictionary *updated2, NSError *error) {
+                    BOOL testPassed = NO;
+                    if (error) {
+                        [test addLog:[NSString stringWithFormat:@"Got error as expected: %@", error]];
+                        testPassed = YES;
+                    } else {
+                        [test addLog:[NSString stringWithFormat:@"Error, update should not have worked, but it did: %@", updated2]];
+                    }
+                    
+                    [test addLog:@"Cleaning up..."];
+                    [table deleteWithId:itemId completion:^(NSNumber *itemId, NSError *error) {
+                        [test addLog:[@"Delete item result: " stringByAppendingString:error ? @"failed" : @"succeeded"]];
+                        completion(testPassed);
+                    }];
+                }];
+            }];
+        }];
+    }];
 }
 
 + (ZumoTest *)createParameterPassingTest {
     return [ZumoTest createTestWithName:@"Parameter passing tests" andExecution:^(ZumoTest *test, UIViewController *viewController, ZumoTestCompletion completion) {
         MSClient *client = [[ZumoTestGlobals sharedInstance] client];
-        MSTable *table = [client getTable:parameterTestTableName];
+        MSTable *table = [client tableWithName:parameterTestTableName];
         NSDictionary *baseDict = @{
                                @"item": @"simple",
                                @"item": @"simple" ,
@@ -246,8 +398,8 @@ static NSString *parameterTestTableName = @"ParamsTestTable";
                         
                         dict[@"operation"] = @"delete";
                         FilterToCaptureHttpTraffic *capturingFilter = [[FilterToCaptureHttpTraffic alloc] init];
-                        MSClient *filteredClient = [client clientwithFilter:capturingFilter];
-                        MSTable *filteredTable = [filteredClient getTable:parameterTestTableName];
+                        MSClient *filteredClient = [client clientWithFilter:capturingFilter];
+                        MSTable *filteredTable = [filteredClient tableWithName:parameterTestTableName];
                         [filteredTable deleteWithId:@1 parameters:dict completion:^(NSNumber *itemId, NSError *error) {
                             if ([self handleIfError:error operation:@"delete" test:test completion:completion]) {
                                 return;
@@ -315,8 +467,8 @@ static NSString *parameterTestTableName = @"ParamsTestTable";
     ZumoTest *result = [ZumoTest createTestWithName:@"User-Agent test" andExecution:^(ZumoTest *test, UIViewController *viewController, ZumoTestCompletion completion) {
         MSClient *client = [[ZumoTestGlobals sharedInstance] client];
         FilterToCaptureHttpTraffic *filter = [[FilterToCaptureHttpTraffic alloc] init];
-        MSClient *filteredClient = [client clientwithFilter:filter];
-        MSTable *table = [filteredClient getTable:tableName];
+        MSClient *filteredClient = [client clientWithFilter:filter];
+        MSTable *table = [filteredClient tableWithName:tableName];
         NSDictionary *item = @{@"name":@"john doe"};
         [table insert:item completion:^(NSDictionary *inserted, NSError *error) {
             BOOL passed = NO;
@@ -324,7 +476,7 @@ static NSString *parameterTestTableName = @"ParamsTestTable";
                 [test addLog:[NSString stringWithFormat:@"Error: %@", error]];
             } else {
                 NSNumber *itemId = inserted[@"id"];
-                MSTable *unfilteredTable = [client getTable:tableName];
+                MSTable *unfilteredTable = [client tableWithName:tableName];
                 [unfilteredTable deleteWithId:itemId completion:nil]; // clean-up after this test
                 NSString *userAgent = [filter userAgent];
                 if ([userAgent rangeOfString:@"objective-c"].location == NSNotFound) {
@@ -352,8 +504,8 @@ static NSString *parameterTestTableName = @"ParamsTestTable";
         [filter setContentType:@"application/json"];
         [filter setStatusCode:201];
         [filter setErrorToReturn:nil];
-        MSClient *mockedClient = [client clientwithFilter:filter];
-        MSTable *table = [mockedClient getTable:@"TableWhichDoesNotExist"];
+        MSClient *mockedClient = [client clientWithFilter:filter];
+        MSTable *table = [mockedClient tableWithName:@"TableWhichDoesNotExist"];
         [table insert:@{@"does":@"not matter"} completion:^(NSDictionary *item, NSError *error) {
             BOOL passed = NO;
             if (error) {
@@ -382,9 +534,9 @@ static NSString *parameterTestTableName = @"ParamsTestTable";
         FilterToBypassService *filter = [[FilterToBypassService alloc] init];
         NSError *errorToReturn = [NSError errorWithDomain:@"MyDomain" code:-1234 userInfo:@{@"one":@"two"}];
         [filter setErrorToReturn:errorToReturn];
-        MSClient *mockedClient = [client clientwithFilter:filter];
+        MSClient *mockedClient = [client clientWithFilter:filter];
         [test addLog:[NSString stringWithFormat:@"Created a client with filter: %@", mockedClient.filters]];
-        MSTable *table = [client getTable:tableName];
+        MSTable *table = [client tableWithName:tableName];
         [table insert:@{@"string1":@"does not matter"} completion:^(NSDictionary *item, NSError *error) {
             BOOL passed = NO;
             if (error) {
@@ -407,8 +559,8 @@ static NSString *parameterTestTableName = @"ParamsTestTable";
         int numberOfRequests = rand() % 3 + 2; // between 2 and 4 requests sent
         [test addLog:[NSString stringWithFormat:@"Using a filter to send %d requests", numberOfRequests]];
         [filter setNumberOfRequests:numberOfRequests];
-        client = [client clientwithFilter:filter];
-        MSTable *table = [client getTable:tableName];
+        client = [client clientWithFilter:filter];
+        MSTable *table = [client tableWithName:tableName];
         NSString *uuid = [[NSUUID UUID] UUIDString];
         NSDictionary *item = @{@"name":uuid};
         [table insert:item completion:^(NSDictionary *inserted, NSError *error) {
@@ -425,7 +577,7 @@ static NSString *parameterTestTableName = @"ParamsTestTable";
                     }
                 } else {
                     NSPredicate *predicate = [NSPredicate predicateWithFormat:@"name = %@", uuid];
-                    MSQuery *query = [table queryWhere:predicate];
+                    MSQuery *query = [table queryWithPredicate:predicate];
                     [filter setNumberOfRequests:1];
                     [query setSelectFields:@[@"name"]];
                     [query readWithCompletion:^(NSArray *items, NSInteger totalCount, NSError *error) {
@@ -455,6 +607,10 @@ static NSString *parameterTestTableName = @"ParamsTestTable";
     }];
     
     return result;
+}
+
++ (NSString *)groupDescription {
+    return @"Tests to validate features which don't fit in other groups. Those include filters, correct user-agent header, and some replaying scenarios.";
 }
 
 @end

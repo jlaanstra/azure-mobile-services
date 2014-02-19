@@ -19,8 +19,10 @@ See the Apache Version 2.0 License for specific language governing permissions a
  */
 package com.microsoft.windowsazure.mobileservices.sdk.testapp.test;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import com.google.gson.JsonElement;
 import com.microsoft.windowsazure.mobileservices.MobileServiceUser;
 
 /**
@@ -29,10 +31,12 @@ import com.microsoft.windowsazure.mobileservices.MobileServiceUser;
  * have them available in the asserts' section
  * 
  */
-public class ResultsContainer {
+public class ResultsContainer {	
 	private PersonTestObject person;
 	
 	private PersonTestObjectWithoutId personWithoutId;
+	
+	private PersonTestObjectWithStringId personWithStringId;
 
 	private ComplexPersonTestObject complexPerson;
 
@@ -57,7 +61,15 @@ public class ResultsContainer {
 	private IdPropertyWithGsonAnnotation idPropertyWithGsonAnnotation;
 	
 	private IdPropertyWithDifferentIdPropertyCasing idPropertyWithDifferentIdPropertyCasing;
+	
+	private Exception exception;
+	
+	private JsonElement jsonResult;
+	
+	private byte[] rawResponseContent;
 
+	private Object customResult;
+	
 	public PersonTestObject getPerson() {
 		return person;
 	}
@@ -78,6 +90,13 @@ public class ResultsContainer {
 		return peopleResult;
 	}
 
+	public void setPeopleResult(PersonTestObject[] peopleResult) {
+		this.peopleResult = new ArrayList<PersonTestObject>();
+		for (PersonTestObject person : peopleResult) {
+			this.peopleResult.add(person);
+		}
+	}
+	
 	public void setPeopleResult(List<PersonTestObject> peopleResult) {
 		this.peopleResult = peopleResult;
 	}
@@ -154,6 +173,14 @@ public class ResultsContainer {
 		this.personWithoutId = personWithNoId;
 	}
 
+	public PersonTestObjectWithStringId getPersonWithStringId() {
+		return personWithStringId;
+	}
+
+	public void setPersonWithStringId(PersonTestObjectWithStringId personWithStringId) {
+		this.personWithStringId = personWithStringId;
+	}
+
 	public IdPropertyWithGsonAnnotation getIdPropertyWithGsonAnnotation() {
 		return idPropertyWithGsonAnnotation;
 	}
@@ -170,6 +197,40 @@ public class ResultsContainer {
 	public void setIdPropertyWithDifferentIdPropertyCasing(
 			IdPropertyWithDifferentIdPropertyCasing idPropertyWithDifferentIdPropertyCasing) {
 		this.idPropertyWithDifferentIdPropertyCasing = idPropertyWithDifferentIdPropertyCasing;
+	}
+
+
+	public Exception getException() {
+		return exception;
+	}
+
+	
+	public void setException(Exception exception) {
+		this.exception = exception;
+	}
+
+	public JsonElement getJsonResult() {
+		return jsonResult;
+	}
+
+	public void setJsonResult(JsonElement jsonResult) {
+		this.jsonResult = jsonResult;
+	}
+
+	public byte[] getRawResponseContent() {
+		return rawResponseContent;
+	}
+
+	public void setRawResponseContent(byte[] rawResponseContent) {
+		this.rawResponseContent = rawResponseContent;
+	}
+
+	public Object getCustomResult() {
+		return customResult;
+	}
+
+	public void setCustomResult(Object customResult) {
+		this.customResult = customResult;
 	}
 
 }

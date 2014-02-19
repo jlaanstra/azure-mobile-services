@@ -19,7 +19,12 @@ See the Apache Version 2.0 License for specific language governing permissions a
  */
 package com.microsoft.windowsazure.mobileservices.zumoe2etestapp.tests;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+import java.util.Random;
+
 
 import com.google.gson.JsonObject;
 import com.microsoft.windowsazure.mobileservices.MobileServiceAuthenticationProvider;
@@ -30,6 +35,7 @@ import com.microsoft.windowsazure.mobileservices.ServiceFilterResponse;
 import com.microsoft.windowsazure.mobileservices.TableDeleteCallback;
 import com.microsoft.windowsazure.mobileservices.TableJsonOperationCallback;
 import com.microsoft.windowsazure.mobileservices.UserAuthenticationCallback;
+import com.microsoft.windowsazure.mobileservices.zumoe2etestapp.MainActivity;
 import com.microsoft.windowsazure.mobileservices.zumoe2etestapp.framework.LogServiceFilter;
 import com.microsoft.windowsazure.mobileservices.zumoe2etestapp.framework.TestCase;
 import com.microsoft.windowsazure.mobileservices.zumoe2etestapp.framework.TestExecutionCallback;
@@ -43,6 +49,8 @@ public class LoginTests extends TestGroup {
 	protected static final String USER_PERMISSION_TABLE_NAME = "droidAuthenticated";
 	protected static final String ADMIN_PERMISSION_TABLE_NAME = "droidAdmin";
 
+	private static JsonObject lastUserIdentityObject;
+
 	public LoginTests() {
 		super("Login tests");
 
@@ -51,22 +59,177 @@ public class LoginTests extends TestGroup {
 		this.addTest(createCRUDTest(USER_PERMISSION_TABLE_NAME, null, TablePermission.User, false));
 		this.addTest(createCRUDTest(ADMIN_PERMISSION_TABLE_NAME, null, TablePermission.Admin, false));
 
+		int indexOfStartAuthenticationTests = this.getTestCases().size();
+		
+		ArrayList<MobileServiceAuthenticationProvider> providersWithRecycledTokenSupport = new ArrayList<MobileServiceAuthenticationProvider>();
+		providersWithRecycledTokenSupport.add(MobileServiceAuthenticationProvider.Facebook);
+		// Known bug - Drop login via Google token until Google client flow is reintroduced
+		//providersWithRecycledTokenSupport.add(MobileServiceAuthenticationProvider.Google);
+
 		for (MobileServiceAuthenticationProvider provider : MobileServiceAuthenticationProvider.values()) {
 			this.addTest(createLogoutTest());
 			this.addTest(createLoginTest(provider));
 			this.addTest(createCRUDTest(APPLICATION_PERMISSION_TABLE_NAME, provider, TablePermission.Application, true));
 			this.addTest(createCRUDTest(USER_PERMISSION_TABLE_NAME, provider, TablePermission.User, true));
 			this.addTest(createCRUDTest(ADMIN_PERMISSION_TABLE_NAME, provider, TablePermission.Admin, true));
+
+			if (providersWithRecycledTokenSupport.contains(provider)) {
+				this.addTest(createLogoutTest());
+				this.addTest(createClientSideLoginTest(provider));
+				this.addTest(createCRUDTest(USER_PERMISSION_TABLE_NAME, provider, TablePermission.User, true));
+			}
+		}
+
+		this.addTest(createLogoutTest());
+		this.addTest(createLoginWithGoogleAccountTest(true, null));
+
+		this.addTest(createLogoutTest());
+		this.addTest(createLoginWithGoogleAccountTest(true, MobileServiceClient.GOOGLE_USER_INFO_SCOPE + " https://www.googleapis.com/auth/userinfo.email"));
+
+		this.addTest(createLogoutTest());
+		this.addTest(createLoginWithGoogleAccountTest(false, null));
+		
+		List<TestCase> testCases = this.getTestCases();
+		for (int i = indexOfStartAuthenticationTests; i < testCases.size(); i++) {
+			testCases.get(i).setCanRunUnattended(false);
 		}
 	}
 
-	private TestCase createLoginTest(final MobileServiceAuthenticationProvider provider) {
-		TestCase test = new TestCase() {
+	private TestCase createLoginWithGoogleAccountTest(final boolean useDefaultAccount, final String customScope) {
+		StringBuilder name = new StringBuilder();
+		
+		name.append("Login with Google Account - ");
+		if (useDefaultAccount) {
+			name.append("Using default account - ");
+		} else {
+			name.append("Using null account - ");
+		}
+		
+		if (customScope == null) {
+			name.append("Using default scope");
+		} else {
+			name.append("Using custom scope");
+		}
+		
+		TestCase test = new TestCase(name.toString()) {
+			
+			@Override
+			protected void executeTest(MobileServiceClient client, final TestExecutionCallback callback) {
+				final TestCase testCase = this;
+				
+				final TestResult testResult = new TestResult();
+				testResult.setTestCase(testCase);
+				testResult.setStatus(TestStatus.Passed);
+				
+				UserAuthenticationCallback userAuthCallback = new UserAuthenticationCallback() {
+					
+					@Override
+					public void onCompleted(MobileServiceUser user, Exception exception,
+							ServiceFilterResponse response) {
+						if (user != null) {
+							log("User successfully authenticated. UserId: " + user.getUserId());
+							callback.onTestComplete(testCase, testResult);
+						} else {
+							log("User was not authenticated");
+							callback.onTestComplete(testCase, createResultFromException(testResult, exception));
+						}
+					}
+				};
+				
+				String scope = customScope;
+				
+				if (scope == null) {
+					scope = MobileServiceClient.GOOGLE_USER_INFO_SCOPE;
+				}
+				
+				if (useDefaultAccount) {
+					client.loginWithGoogleAccount(MainActivity.getInstance(), scope, userAuthCallback);
+				} else {
+					testCase.setExpectedExceptionClass(IllegalArgumentException.class);
+					client.loginWithGoogleAccount(MainActivity.getInstance(), null, scope, userAuthCallback);
+				}
+			}
+		};
+		
+		return test;
+	}
+
+	private TestCase createClientSideLoginTest(final MobileServiceAuthenticationProvider provider) {
+		TestCase test = new TestCase("Login via token for " + provider.toString()) {
+
+			@Override
+			protected void executeTest(MobileServiceClient client,
+					final TestExecutionCallback callback) {
+
+				final TestCase testCase = this;
+				long seed = new Date().getTime();
+				final Random rndGen = new Random(seed);
+
+				if (lastUserIdentityObject == null) {
+					log("Last identity is null. Cannot run this test.");
+					TestResult testResult = new TestResult();
+					testResult.setTestCase(testCase);
+					testResult.setStatus(TestStatus.Failed);
+					callback.onTestComplete(testCase, testResult);
+					return;
+				}
+
+				JsonObject lastIdentity = lastUserIdentityObject;
+				lastUserIdentityObject = null;
+				JsonObject providerIdentity = lastIdentity.getAsJsonObject(provider.toString().toLowerCase(Locale.US));
+				if (providerIdentity == null) {
+					log("Cannot find identity for specified provider. Cannot run this test.");
+					TestResult testResult = new TestResult();
+					testResult.setTestCase(testCase);
+					testResult.setStatus(TestStatus.Failed);
+					callback.onTestComplete(testCase, testResult);
+					return;
+				}
+
+				JsonObject token = new JsonObject();
+				token.addProperty("access_token", providerIdentity.get("accessToken").getAsString());
+				UserAuthenticationCallback authCallback = new UserAuthenticationCallback() {
+
+					@Override
+					public void onCompleted(MobileServiceUser user,
+							Exception exception, ServiceFilterResponse response) {
+						TestResult testResult = new TestResult();
+						testResult.setTestCase(testCase);
+						if (exception != null) {
+							log("Exception during login: " + exception.toString());
+							testResult.setStatus(TestStatus.Failed);
+						} else {
+							log("Logged in as " + user.getUserId());
+							testResult.setStatus(TestStatus.Passed);
+						}
+
+						callback.onTestComplete(testCase, testResult);
+					}
+				};
+				boolean useEnumOverload = rndGen.nextBoolean();
+				if (useEnumOverload) {
+					log("Calling the overload MobileServiceClient.login(MobileServiceAuthenticationProvider, JsonObject, UserAuthenticationCallback)");
+					client.login(provider, token, authCallback);
+				} else {
+					log("Calling the overload MobileServiceClient.login(String, JsonObject, UserAuthenticationCallback)");
+					client.login(provider.toString(), token, authCallback);
+				}
+			}
+		};
+
+		return test;
+	}
+
+	public static TestCase createLoginTest(final MobileServiceAuthenticationProvider provider) {
+		TestCase test = new TestCase("Login with " + provider.toString()) {
 
 			@Override
 			protected void executeTest(final MobileServiceClient client, final TestExecutionCallback callback) {
 				final TestCase testCase = this;
-				client.login(provider, new UserAuthenticationCallback() {
+				long seed = new Date().getTime();
+				final Random rndGen = new Random(seed);
+
+				UserAuthenticationCallback authCallback = new UserAuthenticationCallback() {
 
 					@Override
 					public void onCompleted(MobileServiceUser user, Exception exception, ServiceFilterResponse response) {
@@ -74,6 +237,11 @@ public class LoginTests extends TestGroup {
 						String userName;
 						if(user == null)
 						{
+							log("Error during login, user == null");
+							if (exception != null) {
+								log("Exception: " + exception.toString());
+							}
+
 							userName = "NULL";
 						}
 						else
@@ -87,11 +255,19 @@ public class LoginTests extends TestGroup {
 
 						callback.onTestComplete(testCase, result);
 					}
-				});
+				};
+
+				boolean useEnumOverload = rndGen.nextBoolean();
+				if (useEnumOverload) {
+					log("Calling the overload MobileServiceClient.login(MobileServiceAuthenticationProvider, UserAuthenticationCallback)");
+					client.login(provider, authCallback);
+				} else {
+					log("Calling the overload MobileServiceClient.login(String, UserAuthenticationCallback)");
+					client.login(provider.toString(), authCallback);
+				}
 			}
 		};
 
-		test.setName("Login with " + provider.toString());
 		return test;
 	}
 
@@ -99,7 +275,7 @@ public class LoginTests extends TestGroup {
 		Public, Application, User, Admin
 	}
 
-	private TestCase createLogoutTest() {
+	public static TestCase createLogoutTest() {
 
 		TestCase test = new TestCase() {
 
@@ -176,6 +352,10 @@ public class LoginTests extends TestGroup {
 										if (!validateExecution(crudShouldWork, exception, result)) {
 											callback.onTestComplete(testCase, result);
 											return;
+										}
+
+										if (userIsAuthenticated && tableType == TablePermission.User) {
+											lastUserIdentityObject = jsonEntity.getAsJsonObject("Identities");
 										}
 
 										log("delete item");

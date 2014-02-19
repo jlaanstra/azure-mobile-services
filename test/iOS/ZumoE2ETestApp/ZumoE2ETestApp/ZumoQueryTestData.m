@@ -1,9 +1,6 @@
-//
-//  ZumoQueryTestData.m
-//  ZumoE2ETestApp
-//
-//  Copyright (c) 2012 Microsoft. All rights reserved.
-//
+// ----------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// ----------------------------------------------------------------------------
 
 #import "ZumoQueryTestData.h"
 #import "ZumoTestGlobals.h"
@@ -59,7 +56,7 @@
     @"BestPictureWinner": @NO,
     @"Duration": @(96),
     @"MPAARating": [NSNull null],
-    @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1957 month:4 day:1],
+    @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1957 month:4 day:10],
     @"Title": @"12 Angry Men",
     @"Year": @(1957)
     },
@@ -235,7 +232,7 @@
     @"BestPictureWinner": @NO,
     @"Duration": @(112),
     @"MPAARating": @"PG",
-    @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1955 month:1 day:14],
+    @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1955 month:1 day:13],
     @"Title": @"Rear Window",
     @"Year": @(1954)
     },
@@ -251,7 +248,7 @@
     @"BestPictureWinner": @NO,
     @"Duration": @(130),
     @"MPAARating": @"PG",
-    @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1947 month:1 day:7],
+    @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1947 month:1 day:6],
     @"Title": @"It's a Wonderful Life",
     @"Year": @(1946)
     },
@@ -260,7 +257,7 @@
     @"Duration": @(110),
     @"MPAARating": @"R",
     @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1994 month:11 day:18],
-    @"Title": @"L?on: The Professional",
+    @"Title": @"Léon: The Professional",
     @"Year": @(1994)
     },
     @{
@@ -411,7 +408,7 @@
     @"BestPictureWinner": @NO,
     @"Duration": @(117),
     @"MPAARating": [NSNull null],
-    @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1931 month:8 day:31],
+    @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1931 month:8 day:30],
     @"Title": @"M",
     @"Year": @(1931)
     },
@@ -484,7 +481,7 @@
     @"Duration": @(98),
     @"MPAARating": @"G",
     @"ReleaseDate": [ZumoTestGlobals createDateWithYear:2008 month:6 day:27],
-    @"Title": @"WALL?E",
+    @"Title": @"WALL-E",
     @"Year": @(2008)
     },
     @{
@@ -1083,7 +1080,7 @@
     @"BestPictureWinner": @NO,
     @"Duration": @(72),
     @"MPAARating": [NSNull null],
-    @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1925 month:1 day:1],
+    @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1925 month:6 day:26],
     @"Title": @"The Gold Rush",
     @"Year": @(1925)
     },
@@ -1790,6 +1787,14 @@
     @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1950 month:10 day:13],
     @"Title": @"Harvey",
     @"Year": @(1950)
+    },
+    @{
+        @"BestPictureWinner": @NO,
+        @"Duration": @(117),
+        @"MPAARating": @"PG",
+        @"ReleaseDate": [ZumoTestGlobals createDateWithYear:1984 month:3 day:11],
+        @"Title": @"Nauticaä of the Valley of the Wind",
+        @"Year": @(1984)
     },
     @{
     @"BestPictureWinner": @NO,

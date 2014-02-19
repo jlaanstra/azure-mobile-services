@@ -13,6 +13,7 @@ else
   azure mobile table create $1 droidMovies
   azure mobile table create $1 droidPushTest
   azure mobile table create $1 ParamsTestTable
+  azure mobile table create $1 droidStringIdTable
 
   azure mobile table update -p insert=admin,read=admin,update=admin,delete=admin $1 droidAdmin
   azure mobile table update -p insert=application,read=application,update=application,delete=application $1 droidApplication
@@ -24,6 +25,7 @@ else
   azure mobile script upload $1 table/droidRoundTripTable.read -f droidRoundTripTable.read.js
   azure mobile script upload $1 table/droidRoundTripTable.update -f droidRoundTripTable.update.js
   azure mobile script upload $1 table/droidPushTest.insert -f droidPushTest.insert.js
+  azure mobile script upload $1 table/droidAuthenticated.read -f droidAuthenticated.read.js
   azure mobile script upload $1 table/ParamsTestTable.insert -f ParamsTestTable.insert.js
   azure mobile script upload $1 table/ParamsTestTable.read -f ParamsTestTable.read.js
   azure mobile script upload $1 table/ParamsTestTable.delete -f ParamsTestTable.delete.js

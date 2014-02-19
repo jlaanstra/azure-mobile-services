@@ -1,24 +1,15 @@
 // ----------------------------------------------------------------------------
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // ----------------------------------------------------------------------------
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
 
-#import "MSClient.h"
+#import "MSClientInternal.h"
 #import "MSTable.h"
 #import "MSClientConnection.h"
 #import "MSLogin.h"
 #import "MSUser.h"
+#import "MSAPIRequest.h"
+#import "MSAPIConnection.h"
+#import "MSJSONSerializer.h"
 
 
 #pragma mark * MSClient Private Interface
@@ -44,7 +35,27 @@
 @synthesize applicationKey = applicationKey_;
 @synthesize currentUser = currentUser_;
 @synthesize login = login_;
+@synthesize serializer = serializer_;
 
+@synthesize installId = installId_;
+-(NSString *) installId
+{
+    if(!installId_) {
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        installId_ = [defaults stringForKey:@"WindowsAzureMobileServicesInstallationId"];
+        if(!installId_) {
+            CFUUIDRef newUUID = CFUUIDCreate(kCFAllocatorDefault);
+            installId_ = (__bridge_transfer NSString *)CFUUIDCreateString(kCFAllocatorDefault, newUUID);
+            CFRelease(newUUID);
+        
+            //store the install ID so we don't generate a new one next time
+            [defaults setObject:installId_ forKey:@"WindowsAzureMobileServicesInstallationId"];
+            [defaults synchronize];
+        }
+    }
+    
+    return installId_;
+}
 
 #pragma mark * Public Static Constructor Methods
 
@@ -52,11 +63,11 @@
 +(MSClient *) clientWithApplicationURLString:(NSString *)urlString
 {
     return [MSClient clientWithApplicationURLString:urlString
-                                 withApplicationKey:nil];
+                                 applicationKey:nil];
 }
 
 +(MSClient *) clientWithApplicationURLString:(NSString *)urlString
-                           withApplicationKey:(NSString *)key
+                           applicationKey:(NSString *)key
 {
     // NSURL will be nil for non-percent escaped url strings so we have to
     // percent escape here
@@ -64,18 +75,25 @@
     [urlString stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
     
     NSURL *url = [NSURL URLWithString:urlStringEncoded];
-    return [MSClient clientWithApplicationURL:url withApplicationKey:key];
+    return [MSClient clientWithApplicationURL:url applicationKey:key];
+}
+
++(MSClient *) clientWithApplicationURLString:(NSString *)urlString
+                          withApplicationKey:(NSString *)key
+{
+    return [MSClient clientWithApplicationURLString:urlString
+                                     applicationKey:key];
 }
 
 +(MSClient *) clientWithApplicationURL:(NSURL *)url
 {
-    return [MSClient clientWithApplicationURL:url withApplicationKey:nil];
+    return [MSClient clientWithApplicationURL:url applicationKey:nil];
 }
 
 +(MSClient *) clientWithApplicationURL:(NSURL *)url
-                    withApplicationKey:(NSString *)key
+                    applicationKey:(NSString *)key
 {
-    return [[MSClient alloc] initWithApplicationURL:url withApplicationKey:key];    
+    return [[MSClient alloc] initWithApplicationURL:url applicationKey:key];    
 }
 
 
@@ -84,10 +102,10 @@
 
 -(id) initWithApplicationURL:(NSURL *)url
 {
-    return [self initWithApplicationURL:url withApplicationKey:nil];
+    return [self initWithApplicationURL:url applicationKey:nil];
 }
 
--(id) initWithApplicationURL:(NSURL *)url withApplicationKey:(NSString *)key
+-(id) initWithApplicationURL:(NSURL *)url applicationKey:(NSString *)key
 {
     self = [super init];
     if(self)
@@ -103,7 +121,7 @@
 #pragma mark * Public Filter Methods
 
 
--(MSClient *) clientwithFilter:(id<MSFilter>)filter
+-(MSClient *) clientWithFilter:(id<MSFilter>)filter
 {
     // Create a deep copy of the client (except for the filters)
     MSClient *newClient = [self copy];
@@ -128,12 +146,12 @@
 
 
 -(void) loginWithProvider:(NSString *)provider
-             onController:(UIViewController *)controller
+             controller:(UIViewController *)controller
                  animated:(BOOL)animated
                completion:(MSClientLoginBlock)completion
 {
     return [self.login loginWithProvider:provider
-                            onController:controller
+                            controller:controller
                                 animated:animated
                               completion:completion];
 }
@@ -146,11 +164,11 @@
 }
 
 -(void) loginWithProvider:(NSString *)provider
-                withToken:(NSDictionary *)token
+                token:(NSDictionary *)token
                completion:(MSClientLoginBlock)completion;
 {
    return [self.login loginWithProvider:provider
-                              withToken:token
+                              token:token
                              completion:completion];
 }
 
@@ -163,9 +181,68 @@
 #pragma mark * Public Table Constructor Methods
 
 
+-(MSTable *) tableWithName:(NSString *)tableName
+{
+    return [[MSTable alloc] initWithName:tableName client:self];
+}
+
 -(MSTable *) getTable:(NSString *)tableName
 {
-    return [[MSTable alloc] initWithName:tableName andClient:self];
+    return [self tableWithName:tableName];
+}
+
+
+#pragma mark * Public invokeAPI Methods
+
+
+-(void)invokeAPI:(NSString *)APIName
+            body:(id)body
+      HTTPMethod:(NSString *)method
+      parameters:(NSDictionary *)parameters
+         headers:(NSDictionary *)headers
+      completion:(MSAPIBlock)completion
+{
+    // Create the request
+    MSAPIRequest *request = [MSAPIRequest requestToinvokeAPI:APIName
+                                                      client:self
+                                                        body:body
+                                                  HTTPMethod:method
+                                                  parameters:parameters
+                                                     headers:headers
+                                                  completion:completion];
+    // Send the request
+    if (request) {
+        MSAPIConnection *connection =
+            [MSAPIConnection connectionWithApiRequest:request
+                                               client:self
+                                               completion:completion];
+        [connection start];
+    }
+}
+
+-(void)invokeAPI:(NSString *)APIName
+            data:(NSData *)data
+      HTTPMethod:(NSString *)method
+      parameters:(NSDictionary *)parameters
+         headers:(NSDictionary *)headers
+      completion:(MSAPIDataBlock)completion
+{
+    // Create the request
+    MSAPIRequest *request = [MSAPIRequest requestToinvokeAPI:APIName
+                                                      client:self
+                                                        data:data
+                                                  HTTPMethod:method
+                                                  parameters:parameters
+                                                     headers:headers
+                                                  completion:completion];
+    // Send the request
+    if (request) {
+        MSAPIConnection *connection =
+        [MSAPIConnection connectionWithApiDataRequest:request
+                                               client:self
+                                       completion:completion];
+        [connection start];
+    }
 }
 
 
@@ -176,12 +253,22 @@
 {
     MSClient *client = [[MSClient allocWithZone:zone]
                             initWithApplicationURL:self.applicationURL
-                                withApplicationKey:self.applicationKey];
+                                applicationKey:self.applicationKey];
                                                                             
     client.currentUser = [self.currentUser copyWithZone:zone];
     client.filters = [self.filters copyWithZone:zone];
 
     return client;
+}
+
+
+#pragma mark * Private Methods
+
+
+-(id<MSSerializer>) serializer
+{
+    // Just use a hard coded reference to MSJSONSerializer
+    return [MSJSONSerializer JSONSerializer];
 }
 
 @end

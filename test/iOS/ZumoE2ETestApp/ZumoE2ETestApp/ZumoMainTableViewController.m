@@ -1,9 +1,6 @@
-//
-//  ZumoMainTableViewController.m
-//  ZumoE2ETestApp
-//
-//  Copyright (c) 2012 Microsoft. All rights reserved.
-//
+// ----------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// ----------------------------------------------------------------------------
 
 #import "ZumoMainTableViewController.h"
 #import "ZumoTestGroup.h"
@@ -101,6 +98,38 @@
     }
 }
 
+- (BOOL)validateAndRefreshClient {
+    MSClient *currentClient = [[ZumoTestGlobals sharedInstance] client];
+    NSString *appUrl = [appUrlField text];
+    NSString *appKey = [appKeyField text];
+    BOOL needRefreshClient;
+    if (!currentClient) {
+        // client not yet set
+        needRefreshClient = YES;
+    } else if ([[[currentClient applicationURL] absoluteString] isEqualToString:appUrl] && [[currentClient applicationKey] isEqualToString:appKey]) {
+        // Same application, no need to reinitialize the client
+        needRefreshClient = NO;
+    } else {
+        needRefreshClient = YES;
+    }
+    
+    if (needRefreshClient) {
+        if (![self validateAppInfoForUrl:appUrl andKey:appKey]) {
+            return NO;
+        } else {
+            [[ZumoTestGlobals sharedInstance] initializeClientWithAppUrl:appUrl andKey:appKey];
+        }
+    }
+    
+    [[ZumoTestGlobals sharedInstance] saveAppInfo:appUrl key:appKey];
+    NSString *uploadLogsUrl = [uploadUrlField text];
+    if (uploadLogsUrl && [uploadLogsUrl length]) {
+        [[ZumoTestGlobals sharedInstance] saveUploadLogsUrl:uploadLogsUrl];
+    }
+    
+    return YES;
+}
+
 #pragma mark - Table view data source
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
@@ -133,6 +162,19 @@
         [[NSBundle mainBundle] loadNibNamed:@"ZumoMainTableHeader" owner:self options:nil];
     }
     
+    if (self->headerView) {
+        NSArray *lastUsedApp = [[ZumoTestGlobals sharedInstance] loadAppInfo];
+        if (lastUsedApp) {
+            [appUrlField setText:lastUsedApp[0]];
+            [appKeyField setText:lastUsedApp[1]];
+        }
+        
+        NSString *lastUploadUrl = [[ZumoTestGlobals sharedInstance] loadUploadLogsUrl];
+        if (lastUploadUrl) {
+            [uploadUrlField setText:lastUploadUrl];
+        }
+    }
+    
     return self->headerView;
 }
 
@@ -158,31 +200,18 @@
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    MSClient *currentClient = [[ZumoTestGlobals sharedInstance] client];
-    NSString *appUrl = [appUrlField text];
-    NSString *appKey = [appKeyField text];
-    BOOL needRefreshClient;
-    if (!currentClient) {
-        // client not yet set
-        needRefreshClient = YES;
-    } else if ([[[currentClient applicationURL] absoluteString] isEqualToString:appUrl] && [[currentClient applicationKey] isEqualToString:appKey]) {
-        // Same application, no need to reinitialize the client
-        needRefreshClient = NO;
-    } else {
-        needRefreshClient = YES;
+    if (![self validateAndRefreshClient]) {
+        return;
     }
 
-    if (needRefreshClient) {
-        if (![self validateAppInfoForUrl:appUrl andKey:appKey]) {
-            return;
-        } else {
-            [[ZumoTestGlobals sharedInstance] initializeClientWithAppUrl:appUrl andKey:appKey];
-        }
-    }
+    NSString *uploadLogsUrl = [uploadUrlField text];
 
     ZumoTestGroup *subgroup = [[self testGroups] objectAtIndex:[indexPath row]];
     ZumoTestGroupTableViewController *subview = [[ZumoTestGroupTableViewController alloc] init];
-    [subview setTests:subgroup];
+    [subview setTestGroup:subgroup];
+    if (uploadLogsUrl && [uploadLogsUrl length]) {
+        [subview setLogUploadUrl:uploadLogsUrl];
+    }
     [[self navigationController] pushViewController:subview animated:YES];
 }
 
@@ -191,41 +220,21 @@
     return YES;
 }
 
-- (IBAction)displayHelp:(id)sender {
-    NSArray *lines = [NSArray arrayWithObjects:
-                      @"To run this test application:",
-                      @"1. Create (or reuse) an application using either the portal or the CLI",
-                      @"2. On the application, create the following tables:",
-                      @"2.1. iosRoundTripTable (used for round-trip, update and delete tests), no special setting",
-                      @"2.2. iosMovies (used for query tests), with the appropriate script",
-                      @"2.3. iosApplication (used for login tests), set permissions to 'Application Key'",
-                      @"2.4. iosAuthenticated (used for login tests), set permissions to 'Authenticated Users'",
-                      @"2.5. iosAdmin (used for login tests), set permissions to 'Admin and Scripts'",
-                      @"3. Create applications in all supported identity providers (for login tests)",
-                      @"4. Configure the identity tab of the Zumo app to point to the providers (for login tests)",
-                      @"5. Run the desired tests by selecing the test group, then tapping 'Run Tests'",
-                      @"6. Make sure all the scenarios pass.", nil];
-    NSString *helpText = [lines componentsJoinedByString:@"\n"];
-    ZumoTestHelpViewController *hvc = [[ZumoTestHelpViewController alloc] init];
-    [hvc setTitle:@"General E2E Test App Help" andHelpText:helpText];
-    [self presentViewController:hvc animated:YES completion:nil];
-}
-
 #pragma mark - ZumoTestGroup delegate
 
 - (void)zumoTestGroupStarted:(NSString *)groupName {
     NSLog(@"Tests for %@ started.", groupName);
 }
 
-- (void)zumoTestGroupFinished:(NSString *)groupName withPassed:(int)passedTests andFailed:(int)failedTests {
-    NSLog(@"Tests for group %@ finished: pass: %d, fail: %d", groupName, passedTests, failedTests);
+- (void)zumoTestGroupFinished:(NSString *)groupName withPassed:(int)passedTests andFailed:(int)failedTests andSkipped:(int)skippedTests {
+    NSLog(@"Tests for group %@ finished: pass: %d, fail: %d, skip: %d", groupName, passedTests, failedTests, skippedTests);
 }
 
 - (void)zumoTestGroupSingleTestStarted:(int)testIndex {
     
 }
 
-- (void)zumoTestGroupSingleTestFinished:(int)testIndex withResult:(BOOL)testPassed {
+- (void)zumoTestGroupSingleTestFinished:(int)testIndex withResult:(TestStatus)testStatus {
     
 }
 

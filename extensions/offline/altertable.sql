@@ -1,0 +1,10 @@
+﻿USE [<DATABASE-NAME>]
+GO
+
+ALTER TABLE [<SCHEMA-NAME>].[<TABLE-NAME>]
+ADD
+    [isDeleted] BIT              NOT NULL
+	
+GO
+CREATE NONCLUSTERED INDEX [IX_version]
+    ON [<SCHEMA-NAME>].[<TABLE-NAME>]([__version] ASC);

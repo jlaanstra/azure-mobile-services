@@ -1,22 +1,11 @@
 // ----------------------------------------------------------------------------
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // ----------------------------------------------------------------------------
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
 
 #import <SenTestingKit/SenTestingKit.h>
 #import "WindowsAzureMobileServices.h"
 #import "MSTestFilter.h"
+#import "MSTable+MSTableTestUtilities.h"
 
 @interface WindowsAzureMobileServicesFunctionalTests : SenTestCase {
     MSClient *client;
@@ -36,8 +25,8 @@
 {
     NSLog(@"%@ setUp", self.name);
 
-    testsEnabled = NO;
-    STAssertTrue(testsEnabled, @"The functiontional tests are currently disabled.");
+    testsEnabled = YES;
+    STAssertTrue(testsEnabled, @"The functional tests are currently disabled.");
     
     // These functional tests requires a working Windows Mobile Azure Service
     // with a table named "todoItem". Simply enter the application URL and
@@ -45,8 +34,8 @@
     // 'testsEnabled' BOOL above to YES.
     
     client = [MSClient
-              clientWithApplicationURLString:@"<Windows Azure Mobile Service App URL>"
-              withApplicationKey:@"<Application Key>"];
+                clientWithApplicationURLString:@"<Windows Azure Mobile Service App URL>"
+                applicationKey:@"<Application Key>"];
     
     done = NO;
     
@@ -64,14 +53,13 @@
 
 -(void) testCreateUpdateAndDeleteTodoItem
 {
-    MSTable *todoTable = [client getTable:@"todoItem"];
+    MSTable *todoTable = [client tableWithName:@"todoItem"];
     
     // Create the item
     NSDictionary *item = @{ @"text":@"Write E2E test!", @"complete": @(NO) };
     
     // Insert the item
     [todoTable insert:item completion:^(NSDictionary *newItem, NSError *error) {
-        
         // Check for an error
         if (error) {
             STAssertTrue(FALSE, @"Insert failed with error: %@", error.localizedDescription);
@@ -127,7 +115,7 @@
 
 -(void) testCreateAndQueryTodoItem
 {
-    MSTable *todoTable = [client getTable:@"todoItem"];
+    MSTable *todoTable = [client tableWithName:@"todoItem"];
     
     // Create the items
     NSDictionary *item1 = @{ @"text":@"ItemA", @"complete": @(NO) };
@@ -146,7 +134,7 @@
         STAssertTrue(items.count == 2, @"items.count was: %d", items.count);
         STAssertTrue(totalCount == 3, @"totalCount was: %d", totalCount);
         
-        [self deleteAllItemswithTable:todoTable completion:^(NSError *error) { done = YES; }];
+        [todoTable deleteAllItemsWithCompletion:^(NSError *error) { done = YES; }];
     };
     
     id query6AfterQuery5 = ^(NSArray *items, NSInteger totalCount, NSError *error) {
@@ -221,7 +209,7 @@
         STAssertTrue(totalCount == -1, @"totalCount was: %d", totalCount);
         
         NSPredicate *predicate = [NSPredicate predicateWithFormat:@"text ENDSWITH 'B' AND complete == TRUE"];
-        [todoTable readWhere:predicate completion:query3AfterQuery2];
+        [todoTable readWithPredicate:predicate completion:query3AfterQuery2];
     };
     
     id query1AfterInsert = ^(NSError *error) {
@@ -233,7 +221,7 @@
         }
         
         NSPredicate *predicate = [NSPredicate predicateWithFormat:@"text ENDSWITH 'B'"];
-        [todoTable readWhere:predicate completion:query2AfterQuery1];
+        [todoTable readWithPredicate:predicate completion:query2AfterQuery1];
     };
     
     id insertAfterDeleteAll = ^(NSError *error){
@@ -244,22 +232,20 @@
             done = YES;
         }
         
-        [self insertItems:items withTable:todoTable completion:query1AfterInsert];
+        [todoTable insertItems:items completion:query1AfterInsert];
     };
     
-    [self deleteAllItemswithTable:todoTable completion:insertAfterDeleteAll];
+    [todoTable deleteAllItemsWithCompletion:insertAfterDeleteAll];
     
     STAssertTrue([self waitForTest:90.0], @"Test timed out.");
 }
 
-
 #pragma mark * End-to-End Filter Tests
-
 
 -(void) testFilterThatModifiesRequest
 {
     // Create a filter that will replace the request with one requesting
-    // a table that doesn't exit.
+    // a table that doesn't exist.
     MSTestFilter *testFilter = [[MSTestFilter alloc] init];
     
     NSURL *badURL = [client.applicationURL
@@ -269,9 +255,9 @@
     testFilter.requestToUse = badRequest;
     
     // Create the client and the table
-    MSClient *filterClient = [client clientwithFilter:testFilter];
+    MSClient *filterClient = [client clientWithFilter:testFilter];
     
-    MSTable *todoTable = [filterClient getTable:@"todoItem"];
+    MSTable *todoTable = [filterClient tableWithName:@"todoItem"];
     
     // Create the item
     NSDictionary *item = @{ @"text":@"Write E2E test!", @"complete": @(NO) };
@@ -308,16 +294,16 @@
                                    initWithURL:nil
                                    statusCode:400
                                    HTTPVersion:nil headerFields:nil];
-    NSString* stringData = @"\"This is an Error Message for the testFilterThatModifiesResponse test!\"";
+    NSString* stringData = @"This is an Error Message for the testFilterThatModifiesResponse test!";
     NSData* data = [stringData dataUsingEncoding:NSUTF8StringEncoding];
     
     testFilter.responseToUse = response;
     testFilter.dataToUse = data;
     
     // Create the client and the table
-    MSClient *filterClient = [client clientwithFilter:testFilter];
+    MSClient *filterClient = [client clientWithFilter:testFilter];
     
-    MSTable *todoTable = [filterClient getTable:@"todoItem"];
+    MSTable *todoTable = [filterClient tableWithName:@"todoItem"];
     
     // Create the item
     NSDictionary *item = @{ @"text":@"Write E2E test!", @"complete": @(NO) };
@@ -353,9 +339,9 @@
     testFilter.errorToUse = error;
     
     // Create the client and the table
-    MSClient *filterClient = [client clientwithFilter:testFilter];
+    MSClient *filterClient = [client clientWithFilter:testFilter];
     
-    MSTable *todoTable = [filterClient getTable:@"todoItem"];
+    MSTable *todoTable = [filterClient tableWithName:@"todoItem"];
     
     // Create the item
     NSDictionary *item = @{ @"text":@"Write E2E test!", @"complete": @(NO) };
@@ -366,7 +352,7 @@
         STAssertNil(item, @"item should have been nil.");
 
         STAssertNotNil(error, @"error was nil after deserializing item.");
-        STAssertTrue([error domain] == @"SomeDomain",
+        STAssertTrue([error.domain isEqualToString:@"SomeDomain"],
                      @"error domain was: %@", [error domain]);
         STAssertTrue([error code] == -102,
                      @"error code was: %d",[error code]);
@@ -382,7 +368,7 @@
 
 -(void) testFilterConstantsAreURLEncoded
 {
-    MSTable *todoTable = [client getTable:@"todoItem"];
+    MSTable *todoTable = [client tableWithName:@"todoItem"];
     
     NSString *predicateString = @"text == '#?&$ encode me!'";
     NSPredicate *predicate = [NSPredicate predicateWithFormat:predicateString];
@@ -394,22 +380,22 @@
     [todoTable insert:item completion:^(NSDictionary *item, NSError *error) {
         
         STAssertNotNil(item, @"item should not have been nil.");
-        STAssertNil(error, @"error from insert should have been null.");
+        STAssertNil(error, @"error from insert should have been nil.");
         
         // Now try to query the item and make sure we don't error
-        [todoTable readWhere:predicate completion:^(NSArray *items,
+        [todoTable readWithPredicate:predicate completion:^(NSArray *items,
                                                     NSInteger totalCount,
                                                     NSError *error) {
             
             STAssertNotNil(items, @"items should not have been nil.");
             STAssertTrue([items count] > 0, @"items should have matched something.");
-            STAssertNil(error, @"error from query should have been null.");
+            STAssertNil(error, @"error from query should have been nil.");
             
             // Now delete the inserted item so as not to corrupt future tests
             NSNumber *itemIdToDelete = [item objectForKey:@"id"];
             [todoTable deleteWithId:itemIdToDelete completion:^(NSNumber *itemId,
                                                                 NSError *error) {
-                STAssertNil(error, @"error from delete should have been null.");
+                STAssertNil(error, @"error from delete should have been nil.");
                 done = YES;
             }];
         }];
@@ -420,7 +406,7 @@
 
 -(void) testUserParametersAreURLEncodedWithQuery
 {
-    MSTable *todoTable = [client getTable:@"todoItem"];
+    MSTable *todoTable = [client tableWithName:@"todoItem"];
     
     MSQuery *query = [todoTable query];
     query.parameters = @{@"encodeMe$?": @"No really $#%& encode me!"};
@@ -438,7 +424,7 @@
 
 -(void) testUserParametersAreURLEncodedWithInsertUpdateAndDelete
 {
-    MSTable *todoTable = [client getTable:@"todoItem"];
+    MSTable *todoTable = [client tableWithName:@"todoItem"];
 
     // Create the item
     NSDictionary *item = @{ @"text":@"some text", @"complete": @(NO) };
@@ -450,7 +436,7 @@
            completion:^(NSDictionary *item, NSError *error) {
         
         STAssertNotNil(item, @"item should not have been nil.");
-        STAssertNil(error, @"error from insert should have been null.");
+        STAssertNil(error, @"error from insert should have been nil.");
         
         // Now update the inserted item
         [todoTable update:item
@@ -458,14 +444,14 @@
                completion:^(NSDictionary *updatedItem, NSError *error) {
                           
             STAssertNotNil(updatedItem, @"updatedItem should not have been nil.");
-            STAssertNil(error, @"error from update should have been null.");
+            STAssertNil(error, @"error from update should have been nil.");
 
             // Now delete the inserted item so as not to corrupt future tests
             NSNumber *itemIdToDelete = [updatedItem objectForKey:@"id"];
             [todoTable deleteWithId:itemIdToDelete
                         parameters:parameters
                          completion:^(NSNumber *itemId, NSError *error) {
-                STAssertNil(error, @"error from delete should have been null.");
+                STAssertNil(error, @"error from delete should have been nil.");
                 done = YES;
             }];
         }];
@@ -478,10 +464,9 @@
 
 #pragma mark * Negative Insert Tests
 
-
 -(void) testInsertItemForNonExistentTable
 {
-    MSTable *todoTable = [client getTable:@"NoSuchTable"];
+    MSTable *todoTable = [client tableWithName:@"NoSuchTable"];
     
     // Create the item
     NSDictionary *item = @{ @"text":@"Write E2E test!", @"complete": @(NO) };
@@ -510,10 +495,9 @@
 
 #pragma mark * Negative Update Tests
 
-
 -(void) testUpdateItemForNonExistentTable
 {
-    MSTable *todoTable = [client getTable:@"NoSuchTable"];
+    MSTable *todoTable = [client tableWithName:@"NoSuchTable"];
     
     // Update the item
     NSDictionary *item = @{
@@ -545,7 +529,7 @@
 
 -(void) testUpdateItemForNonExistentItemId
 {
-    MSTable *todoTable = [client getTable:@"todoItem"];
+    MSTable *todoTable = [client tableWithName:@"todoItem"];
     
     // Create the item
     NSDictionary *item = @{
@@ -578,10 +562,9 @@
 
 #pragma mark * Negative Delete Tests
 
-
 -(void) testDeleteItemForNonExistentTable
 {
-    MSTable *todoTable = [client getTable:@"NoSuchTable"];
+    MSTable *todoTable = [client tableWithName:@"NoSuchTable"];
     
     // Create the item
     NSDictionary *item = @{
@@ -613,7 +596,7 @@
 
 -(void) testDeleteItemForNonExistentItemId
 {
-    MSTable *todoTable = [client getTable:@"todoItem"];
+    MSTable *todoTable = [client tableWithName:@"todoItem"];
     
     // Create the item
     NSDictionary *item = @{
@@ -645,7 +628,7 @@
 
 -(void) testDeleteItemWithIdForNonExistentItemId
 {
-    MSTable *todoTable = [client getTable:@"todoItem"];
+    MSTable *todoTable = [client tableWithName:@"todoItem"];
     
     // Delete the item
     [todoTable deleteWithId:@-5 completion:^(NSNumber *itemId, NSError *error) {
@@ -671,10 +654,9 @@
 
 #pragma mark * Negative ReadWithId Tests
 
-
 -(void) testReadWithIdForNonExistentTable
 {
-    MSTable *todoTable = [client getTable:@"NoSuchTable"];
+    MSTable *todoTable = [client tableWithName:@"NoSuchTable"];
 
     // Insert the item
     [todoTable readWithId:@100 completion:^(NSDictionary *item, NSError *error) {
@@ -699,7 +681,7 @@
 
 -(void) testReadWithIdForNonExistentItemId
 {
-    MSTable *todoTable = [client getTable:@"todoItem"];
+    MSTable *todoTable = [client tableWithName:@"todoItem"];
     
     // Insert the item
     [todoTable readWithId:@-5 completion:^(NSDictionary *item, NSError *error) {
@@ -724,77 +706,6 @@
 
 
 #pragma mark * Async Test Helper Method
-
-
--(void) insertItems:(NSArray *)items
-          withTable:(MSTable *)table
-            completion:(void (^)(NSError *))completion
-{
-    __block NSInteger lastItemIndex = -1;
-    
-    __block void (^nextInsertBlock)(id, NSError *error);
-    nextInsertBlock = [^(id newItem, NSError *error) {
-        if (error) {
-            completion(error);
-        }
-        else {
-            if (lastItemIndex + 1  < items.count) {
-                lastItemIndex++;
-                id itemToInsert = [items objectAtIndex:lastItemIndex];
-                [table insert:itemToInsert completion:nextInsertBlock];
-            }
-            else {
-                completion(nil);
-            }
-        }
-    } copy];
-    
-    nextInsertBlock(nil, nil);
-}
-
--(void) deleteAllItemswithTable:(MSTable *)table
-                     completion:(void (^)(NSError *))completion
-{
-    __block MSReadQueryBlock readCompletion;
-    readCompletion = ^(NSArray *items, NSInteger totalCount, NSError *error) {
-        if (error) {
-            completion(error);
-        }
-        else {
-            [self deleteItems:items withTable:table completion:completion];
-        }
-    };
-    
-    [table readWithQueryString:@"$top=500" completion:readCompletion];
-}
-
-
--(void) deleteItems:(NSArray *)items
-          withTable:(MSTable *)table
-         completion:(void (^)(NSError *))completion
-{
-    __block NSInteger lastItemIndex = -1;
-    
-    __block void (^nextDeleteBlock)(NSNumber *, NSError *error);
-    nextDeleteBlock = [^(NSNumber *itemId, NSError *error) {
-        if (error) {
-            completion(error);
-        }
-        else {
-            if (lastItemIndex + 1  < items.count) {
-                lastItemIndex++;
-                id itemToDelete = [items objectAtIndex:lastItemIndex];
-                [table delete:itemToDelete completion:nextDeleteBlock];
-            }
-            else {
-                completion(nil);
-            }
-        }
-    } copy];
-    
-    nextDeleteBlock(0, nil);
-}
-
 
 -(BOOL) waitForTest:(NSTimeInterval)testDuration {
     

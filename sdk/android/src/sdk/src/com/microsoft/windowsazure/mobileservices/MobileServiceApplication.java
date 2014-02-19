@@ -53,18 +53,24 @@ public final class MobileServiceApplication {
 	 * @return The Installation ID
 	 */
 	public static String getInstallationId(Context context) {
-		SharedPreferences prefereneces = PreferenceManager
+		
+		//if the device is an emulator, return a fixed installation id
+		if (isEmulator()) {
+			return "00000000-0000-0000-0000-000000000000";
+		}
+		
+		SharedPreferences preferences = PreferenceManager
 				.getDefaultSharedPreferences(context.getApplicationContext());
 
 		if (mInstallationId == null) {
-			String val = prefereneces.getString(INSTALLATION_ID_KEY, null);
+			String val = preferences.getString(INSTALLATION_ID_KEY, null);
 			mInstallationId = val;
 
 			// Generate a new AppInstallationId if we failed to find one
 			if (mInstallationId == null) {
 				mInstallationId = UUID.randomUUID().toString();
 
-				Editor preferencesEditor = prefereneces.edit();
+				Editor preferencesEditor = preferences.edit();
 				preferencesEditor.putString(INSTALLATION_ID_KEY,
 						mInstallationId);
 				preferencesEditor.commit();
@@ -73,5 +79,9 @@ public final class MobileServiceApplication {
 
 		return mInstallationId;
 
+	}
+
+	private static boolean isEmulator() {
+		return "google_sdk".equals(android.os.Build.PRODUCT) || "sdk".equals(android.os.Build.PRODUCT);
 	}
 }

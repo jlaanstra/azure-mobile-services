@@ -23,6 +23,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map.Entry;
@@ -30,20 +31,50 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TimeZone;
 
+import org.apache.http.Header;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.microsoft.windowsazure.mobileservices.MobileServiceClient;
+import com.microsoft.windowsazure.mobileservices.ServiceFilterResponse;
 
 public class Util {
+
+	public final static String LogTimeFormat = "yyyy-MM-dd HH:mm:ss'.'SSS";
+	private final static Hashtable<String, String> globalTestParameters = new Hashtable<String, String>();
+
+	public static Hashtable<String, String> getGlobalTestParameters() {
+		return globalTestParameters;
+	}
+
+	public static String createComplexRandomString(Random rndGen, int size) {
+		if (rndGen.nextInt(3) > 0) {
+			return createSimpleRandomString(rndGen, size);
+		} else {
+			return createSimpleRandomString(rndGen, size, ' ', 0xfffe);
+		}
+	}
 	public static String createSimpleRandomString(Random rndGen, int size) {
 		int minChar = ' ';
 		int maxChar = '~';
 
+		return createSimpleRandomString(rndGen, size, minChar, maxChar);
+	}
+	
+	public static String createSimpleRandomString(Random rndGen, int size, int minChar, int maxChar) {
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < size; i++) {
-			int charRand = rndGen.nextInt(maxChar - minChar);
-			sb.append((char) (minChar + charRand));
+			
+			int charRand;
+			char c;
+			do {
+				charRand = rndGen.nextInt(maxChar - minChar);
+				c = (char) (minChar + charRand);
+			} while (Character.isLowSurrogate(c) || Character.isHighSurrogate(c));
+			
+			sb.append(c);
 		}
 
 		return sb.toString();
@@ -104,17 +135,21 @@ public class Util {
 	}
 
 	public static String dateToString(Date date) {
+		return dateToString(date, "yyyy-MM-dd'T'HH:mm:ss'.'SSS'Z'");
+	}
+	
+	public static String dateToString(Date date, String dateFormatStr) {
 		if (date == null) {
 			return "NULL";
 		}
-		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'.'SSS'Z'", Locale.getDefault());
+		SimpleDateFormat dateFormat = new SimpleDateFormat(dateFormatStr, Locale.getDefault());
 		dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 
 		String formatted = dateFormat.format(date);
 
 		return formatted;
 	}
-
+	
 	public static boolean compare(Object o1, Object o2) {
 		if (o1 == null && o2 == null) {
 			return true;
@@ -125,6 +160,21 @@ public class Util {
 		}
 
 		return o1.equals(o2);
+	}
+	
+	public static TestCase createSeparatorTest(String testName) {
+		return new TestCase(testName) {
+
+			@Override
+			protected void executeTest(MobileServiceClient client,
+					TestExecutionCallback callback) {
+				TestResult testResult = new TestResult();
+				testResult.setTestCase(this);
+				testResult.setStatus(TestStatus.Passed);
+				callback.onTestComplete(this, testResult);
+			}
+			
+		}; 
 	}
 
 	public static boolean compareJson(JsonElement e1, JsonElement e2) {
@@ -193,7 +243,11 @@ public class Util {
 
 		return true;
 	}
-
+	
+	public static Date getUTCNow() {
+		return new GregorianCalendar(TimeZone.getTimeZone("utc")).getTime();
+	}
+	
 	public static Date getUTCDate(int year, int month, int day) {
 
 		return getUTCDate(year, month, day, 0, 0, 0);
@@ -213,5 +267,26 @@ public class Util {
 		cal.setTime(date);
 
 		return cal;
+	}
+	
+	public static boolean responseContainsHeader(ServiceFilterResponse response, String headerName) {
+		for (Header header : response.getHeaders()) {
+			if (header.getName().equals(headerName)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+
+	public static String getHeaderValue(ServiceFilterResponse response, String headerName) {
+		for (Header header : response.getHeaders()) {
+			if (header.getName().equals(headerName)) {
+				return header.getValue();
+			}
+		}
+		
+		return null;
 	}
 }
