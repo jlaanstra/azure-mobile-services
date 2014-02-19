@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -140,12 +141,18 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             this.hasLocalChanges = false;
         }
 
-        public async Task<JObject> UploadInsert(JObject item, Uri tableUri, IHttp http)
+        public async Task<JObject> UploadInsert(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
         {
             //remove systemproperties
             JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
 
-            HttpRequestMessage req = http.CreateRequest(HttpMethod.Post, tableUri);
+            string paramString = TimestampSynchronizer.GetQueryString(parameters);
+
+            Uri insertUri = new Uri(string.Format("{0}{1}",
+                tableUri.OriginalString,
+                paramString != null ? "?" + paramString : string.Empty));
+
+            HttpRequestMessage req = http.CreateRequest(HttpMethod.Post, insertUri);
             req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
 
             JObject response = await http.GetJsonAsync(req);
@@ -163,7 +170,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             return response;
         }
 
-        public async Task<JObject> UploadUpdate(JObject item, Uri tableUri, IHttp http)
+        public async Task<JObject> UploadUpdate(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
         {
             string version = null;
             JToken versionToken = item["__version"];
@@ -189,7 +196,12 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             //remove systemproperties
             JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
 
-            Uri updateUri = new Uri(tableUri.OriginalString + "/" + Uri.EscapeDataString(item["id"].ToString()));
+            string paramString = TimestampSynchronizer.GetQueryString(parameters);
+
+            Uri updateUri = new Uri(string.Format("{0}/{1}{2}",
+                tableUri.OriginalString,
+                Uri.EscapeDataString(item["id"].ToString()),
+                paramString != null ? "?" + paramString : string.Empty));
 
             HttpRequestMessage req = http.CreateRequest(new HttpMethod("PATCH"), updateUri, new Dictionary<string, string>() { { "If-Match", string.Format("\"{0}\"", version) } });
             req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
@@ -225,12 +237,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        public async Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http)
+        public async Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
         {
-            Uri deleteUri = new Uri(string.Format("{0}/{1}?version={2}", 
+            string paramString = TimestampSynchronizer.GetQueryString(parameters);
+            Uri deleteUri = new Uri(string.Format("{0}/{1}?version={2}{3}", 
                 tableUri.OriginalString, 
                 Uri.EscapeDataString(item["id"].ToString()), 
-                Uri.EscapeDataString(item["__version"].ToString())));
+                Uri.EscapeDataString(item["__version"].ToString()),
+                paramString != null ? "&" + paramString : string.Empty));
 
             HttpRequestMessage req = http.CreateRequest(HttpMethod.Delete, deleteUri);
 
@@ -317,5 +331,33 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         }
 
         #endregion
+
+        public static string GetQueryString(IDictionary<string, string> parameters)
+        {
+            string parametersString = null;
+
+            if (parameters != null && parameters.Count > 0)
+            {
+                parametersString = "";
+                string formatString = "{0}={1}";
+                foreach (var parameter in parameters)
+                {
+                    if (parameter.Key.StartsWith("$"))
+                    {
+                        throw new ArgumentException();
+                    }
+
+                    string escapedKey = Uri.EscapeDataString(parameter.Key);
+                    string escapedValue = Uri.EscapeDataString(parameter.Value);
+                    parametersString += string.Format(CultureInfo.InvariantCulture,
+                                                      formatString,
+                                                      escapedKey,
+                                                      escapedValue);
+                    formatString = "&{0}={1}";
+                }
+            }
+
+            return parametersString;
+        }
     }
 }

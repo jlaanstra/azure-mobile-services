@@ -47,5 +47,15 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
             return new Uri(string.Format("{0}://{1}/{2}", requestUri.Scheme, requestUri.Host, path.Substring(0, endIndex)));
         }
+
+        public static IDictionary<string, string> GetQueryParameters(Uri requestUri)
+        {
+            IDictionary<string, string> parameters = new Dictionary<string, string>();
+            foreach(var kvp in requestUri.GetQueryNameValuePairs().Where(i => !i.Key.StartsWith("$")))
+            {
+                parameters.Add(kvp);
+            }
+            return parameters;
+        }
     }
 }

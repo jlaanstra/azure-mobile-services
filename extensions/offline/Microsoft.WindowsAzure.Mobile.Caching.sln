@@ -46,6 +46,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.WindowsAzure.Mobi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.WindowsAzure.Mobile.Caching.Test", "Microsoft.WindowsAzure.Mobile.Caching.Test\Microsoft.WindowsAzure.Mobile.Caching.Test.csproj", "{1FDE9D33-E45B-4DA3-B09F-28C43D5E84C6}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shared", "shared", "{FD1CF98E-21F0-4D84-9B06-A83A5B79A559}"
+	ProjectSection(SolutionItems) = preProject
+		scripts\conflicts.js = scripts\conflicts.js
+		scripts\responseHelper.js = scripts\responseHelper.js
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -261,5 +267,6 @@ Global
 		{1FDE9D33-E45B-4DA3-B09F-28C43D5E84C6} = {845585A9-B19C-4BB7-B0D5-5462DBFD07B8}
 		{17984F1B-4BB0-4B34-9062-AD8E961BBB50} = {47DA737C-6760-4028-A8DB-63FE1B9F2B2C}
 		{B594EEB2-A4BF-4C9C-81F3-0A09E6B8DD71} = {47DA737C-6760-4028-A8DB-63FE1B9F2B2C}
+		{FD1CF98E-21F0-4D84-9B06-A83A5B79A559} = {47DA737C-6760-4028-A8DB-63FE1B9F2B2C}
 	EndGlobalSection
 EndGlobal
