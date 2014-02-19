@@ -39,6 +39,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TodoItem.Win81", "TodoItem.Win81\TodoItem.Win81.csproj", "{E5EBD13C-F325-4FFF-AA06-F6B05A4C0D22}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "content", "content", "{47DA737C-6760-4028-A8DB-63FE1B9F2B2C}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\README.md = ..\..\README.md
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntegrationApp", "test\IntegrationApp\IntegrationApp.csproj", "{A849540E-666C-483D-9598-AF5DA85FFE45}"
 EndProject
