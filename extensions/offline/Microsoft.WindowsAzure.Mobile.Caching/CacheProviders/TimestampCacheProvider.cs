@@ -12,6 +12,7 @@ using System.Diagnostics.Contracts;
 using System.Collections;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Headers;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
@@ -135,6 +136,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Contract.Requires<ArgumentNullException>(content != null, "content");
 
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
+            IDictionary<string, string> parameters = UriHelper.GetQueryParameters(requestUri);
 
             JToken result;
             string rawContent = await content.ReadAsStringAsync();
@@ -144,7 +146,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
                 await this.synchronizer.UploadChanges(tableUri, http);
-                JObject json = await this.synchronizer.UploadInsert(contentObject, tableUri, http);
+                JObject json = await this.synchronizer.UploadInsert(contentObject, tableUri, http, parameters);
                 //insert expects a single item so we return the first one
                 result = ResponseHelper.GetResultsJArrayFromJson(json).First;
             }
@@ -199,6 +201,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
 
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
+            IDictionary<string, string> parameters = UriHelper.GetQueryParameters(requestUri);
 
             JToken result;
             string rawContent = await content.ReadAsStringAsync();
@@ -209,13 +212,28 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
                 //make sure we synchronize
                 await this.synchronizer.UploadChanges(tableUri, http);
-                JObject json = await this.synchronizer.UploadUpdate(contentObject, tableUri, http);
+                JObject json = await this.synchronizer.UploadUpdate(contentObject, tableUri, http, parameters);
                 //update expects a single item so we return the first one
                 result = ResponseHelper.GetResultsJArrayFromJson(json).First;
+                //TODO
+                if(result == null)
+                {
+                    result = contentObject;
+                }
             }
             else
             {
                 this.synchronizer.NotifyOfUnsynchronizedChange();
+
+                if(http.OriginalRequest != null)
+                {
+                    EntityTagHeaderValue tag = http.OriginalRequest.Headers.IfMatch.FirstOrDefault();
+                    if (tag != null)
+                    {
+                        //trim "
+                        contentObject["__version"] = tag.Tag.Trim(new char[] { '"' });
+                    }
+                }
 
                 using (await this.storage.Open())
                 {
@@ -249,6 +267,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
 
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
+            IDictionary<string, string> parameters = UriHelper.GetQueryParameters(requestUri);
 
             if (await network.IsConnectedToInternet())
             {
@@ -262,7 +281,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 }
                 if (arr.Count > 0)
                 {
-                    JObject json = await this.synchronizer.UploadDelete(arr.First as JObject, tableUri, http);
+                    JObject json = await this.synchronizer.UploadDelete(arr.First as JObject, tableUri, http, parameters);
                 }
             }
             else
@@ -274,7 +293,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 using (await this.storage.Open())
                 {
                     JArray arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(id.Replace("'", "''")))) });
-                    if (arr.Count > 0 && arr.First.Value<int>("status") == (int)ItemStatus.Unchanged)
+                    if (arr.Count > 0 && arr.First.Value<int>("status") != (int)ItemStatus.Inserted)
                     {
                         //update status of current item 
                         JArray deleted = new JArray();

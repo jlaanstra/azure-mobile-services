@@ -16,10 +16,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         Task UploadChanges(Uri tableUri, IHttp http);
 
-        Task<JObject> UploadInsert(JObject item, Uri tableUri, IHttp http);
+        Task<JObject> UploadInsert(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null);
 
-        Task<JObject> UploadUpdate(JObject item, Uri tableUri, IHttp http);
+        Task<JObject> UploadUpdate(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null);
 
-        Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http);
+        Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null);
     }
 }
