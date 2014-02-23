@@ -103,7 +103,7 @@ namespace IntegrationApp
                     {
                         foreach(TestDescription t in this.tests)
                         {
-                            writer.WriteLine(string.Format("{0},{1},{2}", t.Name, t.Duration, t.Bytes));
+                            writer.WriteLine(string.Format("{0},{1},{2}", t.Name, t.Duration.TotalMilliseconds, t.Bytes));
                         }
                     }
                 }
