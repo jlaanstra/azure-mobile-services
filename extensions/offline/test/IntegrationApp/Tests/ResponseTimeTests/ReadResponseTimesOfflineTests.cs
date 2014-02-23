@@ -46,6 +46,9 @@ namespace IntegrationApp.Tests.ResponseTimeTests
                     Weight = i % 2 == 0 ? 35.7f : (float?)null,
                 });
             }
+
+            //make sure we do not have any timestamps saved for requests
+            await this.CacheProvider.Purge();
         }
 
         [Tag("ResponseTime")]
