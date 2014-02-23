@@ -17,9 +17,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
     {
         private string dbFile;
         private SQLiteConnection db;
-#if DEBUG
         private int databaseThreadId;
-#endif
         private static Task completed = Task.FromResult(0);
 
         internal IDictionary<string, Column> defaultColumns = new Dictionary<string, Column>()
@@ -116,10 +114,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 Debug.WriteLine("Inserting...");
 
-                foreach (JObject item in data)
-                {
-                    db.InsertIntoTable(tableName, columns, item, overwrite);
-                }
+                db.InsertIntoTable(tableName, columns, data.OfType<JObject>(), overwrite);
                 return completed;
             }
             catch (SQLiteException ex)
@@ -159,7 +154,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        public Task RemoveStoredData(string tableName, IEnumerable<string> ids)
+        public Task RemoveStoredData(string tableName, JArray ids)
         {
             Debug.WriteLine(string.Format("Removing data for table {0}, ids: {1}", tableName, string.Join(",", ids)));
 
@@ -174,7 +169,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 Debug.WriteLine("Deleting...");
 
-                db.DeleteFromTable(tableName, ids);
+                db.DeleteFromTable(tableName, ids.Select(t => t.ToString()));
                 return completed;
             }
             catch (SQLiteException ex)

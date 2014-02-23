@@ -157,7 +157,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             JObject response = await http.GetJsonAsync(req);
             JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
-            IEnumerable<string> deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
+            JArray deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
 
             string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
@@ -210,7 +210,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 JObject response = await http.GetJsonAsync(req);
                 JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
-                IEnumerable<string> deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
+                JArray deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
 
                 string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
@@ -252,7 +252,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 JObject response = await http.GetJsonAsync(req);
                 JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
-                IEnumerable<string> deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
+                JArray deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
 
                 string tableName = UriHelper.GetTableNameFromUri(tableUri);
 

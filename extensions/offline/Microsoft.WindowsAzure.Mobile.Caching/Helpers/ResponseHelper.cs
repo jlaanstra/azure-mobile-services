@@ -27,7 +27,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             JToken results;
             if (json.TryGetValue("results", out results) && results is JArray)
             {
-                // result should be an array of a single item
+                // result should be an array of a items
                 // insert them as an unchanged items
                 dataForInsertion = (JArray)results;
                 foreach (JObject item in dataForInsertion.OfType<JObject>())
@@ -43,17 +43,21 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             return dataForInsertion;
         }
 
-        public static IEnumerable<string> GetDeletedJArrayFromJson(JObject json)
+        public static JArray GetDeletedJArrayFromJson(JObject json)
         {
+            JArray dataForInsertion;
+
             JToken deleted;
-            if (json.TryGetValue("deleted", out deleted))
+            if (json.TryGetValue("deleted", out deleted) && deleted is JArray)
             {
-                return deleted.Select(token => ((JValue)token).Value.ToString());
+                dataForInsertion = (JArray)deleted;
             }
             else
             {
-                return new string[0];
+                dataForInsertion = new JArray();
             }
+
+            return dataForInsertion;
         }
 
         public static void EnsureValidSyncResponse(JObject json)

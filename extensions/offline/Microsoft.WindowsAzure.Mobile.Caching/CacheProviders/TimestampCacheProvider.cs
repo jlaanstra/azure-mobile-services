@@ -303,7 +303,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     }
                     else
                     {
-                        await this.storage.RemoveStoredData(tableName, new string[] { id });
+                        await this.storage.RemoveStoredData(tableName, new JArray(id));
                     }                    
                 }
             }            

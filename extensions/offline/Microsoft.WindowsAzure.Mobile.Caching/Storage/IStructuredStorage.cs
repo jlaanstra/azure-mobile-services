@@ -17,7 +17,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         Task UpdateData(string tableName, JArray data);
 
-        Task RemoveStoredData(string tableName, IEnumerable<string> ids);
+        Task RemoveStoredData(string tableName, JArray ids);
 
         Task Purge();
     }

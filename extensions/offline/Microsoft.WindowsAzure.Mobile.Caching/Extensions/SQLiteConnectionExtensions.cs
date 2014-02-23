@@ -228,36 +228,53 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        public static void InsertIntoTable(this SQLiteConnection This, string tableName, IDictionary<string, Column> columns, IDictionary<string, JToken> data, bool overwrite)
+        public static void InsertIntoTable(this SQLiteConnection This, string tableName, IDictionary<string, Column> columns, 
+            IEnumerable<IDictionary<string, JToken>> data, bool overwrite)
         {
             int count = columns.Count;
+            int itemsLeft = data.Count();
+            int numberOfBulkInserts = 999 / count;
 
-            StringBuilder builder = new StringBuilder(count * 2 - 1);
+            StringBuilder builder = new StringBuilder(count * 2 + 1);
+            builder.Append('(');
             for (int i = 0; i < count; i++)
             {
                 builder.Append("?,");
             }
-            builder.Remove(builder.Length - 1, 1);
+            builder.Replace(',', ')', builder.Length - 1, 1);
+            string insertString = builder.ToString();
+            
+            int batch = Math.Min(numberOfBulkInserts, itemsLeft);
+            int itemsProcessed = 0;
 
-            string insertStatement = builder.ToString();
-
-            string sqlStatement = string.Format(overwrite ? "INSERT OR REPLACE INTO {0} ('{1}') VALUES ({2})" : "INSERT INTO {0} ('{1}') VALUES ({2})",
-                tableName,
-                string.Join("','", columns.Keys),
-                insertStatement
-                );
-
-            Debug.WriteLine(sqlStatement);
-
-            using (ISQLiteStatement stm = This.Prepare(sqlStatement))
+            while(itemsLeft > 0)
             {
-                stm.BindDataToStatement(columns, data);
+                string sqlStatement = string.Format(overwrite ? "INSERT OR REPLACE INTO {0} ('{1}') VALUES {2}" : "INSERT INTO {0} ('{1}') VALUES {2}",
+                    tableName,
+                    string.Join("','", columns.Keys),
+                    string.Join(",", Enumerable.Repeat(insertString, batch))
+                    );
 
-                SQLiteResult result = stm.Step();
-                if(result == SQLiteResult.CONSTRAINT)
+                Debug.WriteLine(sqlStatement);
+
+                using (ISQLiteStatement stm = This.Prepare(sqlStatement))
                 {
-                    throw new InvalidOperationException("Item already exists.");
+                    int bindIndex = 1;
+                    foreach (var item in data.Skip(itemsProcessed).Take(batch))
+                    {
+                        stm.BindDataToStatement(columns, item, ref bindIndex);
+                    }
+
+                    SQLiteResult result = stm.Step();
+                    if (result == SQLiteResult.CONSTRAINT)
+                    {
+                        throw new InvalidOperationException("Item already exists.");
+                    }
                 }
+            
+                itemsLeft -= batch;
+                itemsProcessed += batch;
+                batch = Math.Min(numberOfBulkInserts, itemsLeft);
             }
         }
 
@@ -286,7 +303,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             using (ISQLiteStatement stm = This.Prepare(sqlStatement))
             {
-                stm.BindDataToStatement(columns, data);
+                int bindIndex = 1;
+                stm.BindDataToStatement(columns, data, ref bindIndex);
 
                 SQLiteResult result = stm.Step();
                 if (result != SQLiteResult.DONE)
@@ -296,9 +314,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        private static void BindDataToStatement(this ISQLiteStatement This, IDictionary<string, Column> columns, IDictionary<string, JToken> data)
+        private static void BindDataToStatement(this ISQLiteStatement This, IDictionary<string, Column> columns, 
+            IDictionary<string, JToken> data, ref int bindIndex)
         {
-            int j = 1;
             foreach (var prop in columns)
             {
                 Column c = prop.Value;
@@ -317,13 +335,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     {
                         throw new InvalidOperationException("Type is unknown for a mapping to a sqlite type.");
                     }
-                    bind(This, j, value);
+                    bind(This, bindIndex, value);
                 }
                 else
                 {
-                    This.Bind(j, null);
+                    This.Bind(bindIndex, null);
                 }
-                j++;
+                bindIndex++;
             }
         }
 
