@@ -122,6 +122,7 @@
     <Compile Include="Exceptions\MobileServiceConflictsResolvedException.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />
     <Compile Include="Extensions\JObjectExtensions.cs" />
+    <Compile Include="Extensions\MobileServiceClientExtensions.cs" />
     <Compile Include="Extensions\SQLiteConnectionExtensions.cs" />
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Handler\CacheHandler.cs" />
