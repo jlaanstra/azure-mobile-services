@@ -13,6 +13,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
     public class TimestampSynchronizerTest
     {
         private Mock<IStructuredStorage> storage;
+        private Mock<IConflictResolver> conflictResolver;
         private Mock<IHttp> http;
 
         private HttpContent responseContent = new StringContent(
@@ -37,7 +38,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
                 {
                     return Task.FromResult(0);
                 });
-            this.storage.Setup(iss => iss.RemoveStoredData(It.IsAny<string>(), It.IsAny<IEnumerable<string>>()))
+            this.storage.Setup(iss => iss.RemoveStoredData(It.IsAny<string>(), It.IsAny<JArray>()))
                 .Returns(() =>
                 {
                     return Task.FromResult(0);
@@ -61,12 +62,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
                     }
                     return req;
                 });
+            this.conflictResolver = new Mock<IConflictResolver>();
+            this.conflictResolver.Setup(c => c.Resolve(It.IsAny<Conflict>())).Returns(Task.FromResult(new ConflictResult()));
         }
 
         [TestMethod]
         public async Task SynchronizeInsertShouldRemoveIdAndTimestamp()
         {
-            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object);
+            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object, this.conflictResolver.Object);
 
             #region Setup
             HttpRequestMessage req = null;
@@ -106,7 +109,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         [TestMethod]
         public async Task SynchronizeDeleteShouldAddIdAndVersionToUrlAndSendEmptyBody()
         {
-            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object);
+            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object, this.conflictResolver.Object);
 
             #region Setup
             HttpRequestMessage req = null;
@@ -141,7 +144,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         [TestMethod]
         public async Task SynchronizeUpdateShouldKeepIdAndAddToUrl()
         {
-            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object);
+            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object, this.conflictResolver.Object);
 
             #region Setup
             HttpRequestMessage req = null;
@@ -182,7 +185,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         [TestMethod]
         public async Task DownloadChangesShouldLoadTimestampsWhenOnline()
         {
-            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object);
+            ISynchronizer synchronizer = new TimestampSynchronizer(this.storage.Object, this.conflictResolver.Object);
             string url = "http://localhost/tables/table/";
             string timestamp = "00000000";
 
@@ -202,7 +205,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
                     return Task.FromResult(new JArray(JObject.Parse(string.Format(
                         //escape here
                             @"{{
-                                ""requesturl"": ""{0}"",
+                                ""requestUri"": ""{0}"",
                                 ""id"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
                                 ""__version"": ""{1}""
                             }}"
@@ -213,7 +216,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
                 {
                     return Task.FromResult(0);
                 });
-            this.storage.Setup(iss => iss.RemoveStoredData(It.IsAny<string>(), It.IsAny<IEnumerable<string>>()))
+            this.storage.Setup(iss => iss.RemoveStoredData(It.IsAny<string>(), It.IsAny<JArray>()))
                 .Returns(() =>
                 {
                     return Task.FromResult(0);

@@ -67,7 +67,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 
             JObject obj = await ResponseHelper.GetResponseAsJObject(content);
 
-            IEnumerable<string> array = ResponseHelper.GetDeletedJArrayFromJson(obj);
+            JArray array = ResponseHelper.GetDeletedJArrayFromJson(obj);
 
             Assert.IsNotNull(array);
             Assert.AreEqual(1, array.Count());

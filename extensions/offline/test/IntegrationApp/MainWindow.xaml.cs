@@ -71,7 +71,8 @@ namespace IntegrationApp
             App.Harness.Settings.Custom["MobileServiceOfflineRuntimeKey"] = this.syncServiceKey.Text;
             App.Harness.Settings.Custom["MobileServiceNormalRuntimeUrl"] = this.noSyncService.Text;
             App.Harness.Settings.Custom["MobileServiceNormalRuntimeKey"] = this.noSyncServiceKey.Text;
-            App.Harness.Settings.TagExpression = this.tag.Text;
+            App.Harness.Settings.TagExpression = 
+                string.IsNullOrEmpty(this.tag.Text) ? "All - ResponseTime - BandwidthUsage" : this.tag.Text;
 
             Settings.Default.MobileServiceOfflineRuntimeUrl = this.syncService.Text;
             Settings.Default.MobileServiceOfflineRuntimeKey = this.syncServiceKey.Text;

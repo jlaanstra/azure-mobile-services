@@ -110,9 +110,16 @@
     <Compile Include="CacheProviders\DisabledCacheProvider.cs" />
     <Compile Include="CacheProviders\MemoryCacheProvider.cs" />
     <Compile Include="CacheProviders\TimestampCacheProvider.cs" />
-    <Compile Include="Conflict.cs" />
+    <Compile Include="Conflicts\Conflict.cs" />
+    <Compile Include="Conflicts\ConflictResult.cs" />
+    <Compile Include="Conflicts\ConflictType.cs" />
+    <Compile Include="Conflicts\IConflictResolver.cs" />
+    <Compile Include="Conflicts\LatestWriteWinsResolver.cs" />
+    <Compile Include="Conflicts\NoConflictResolver.cs" />
+    <Compile Include="Conflicts\ResolvedConflict.cs" />
     <Compile Include="Disposable.cs" />
     <Compile Include="Exceptions\HttpStatusCodeException.cs" />
+    <Compile Include="Exceptions\MobileServiceConflictsResolvedException.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />
     <Compile Include="Extensions\JObjectExtensions.cs" />
     <Compile Include="Extensions\SQLiteConnectionExtensions.cs" />

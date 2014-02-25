@@ -103,6 +103,8 @@
     <Compile Include="Tests\BandwidthUsageTests\ReadBandwidthUsageOfflineTests.cs" />
     <Compile Include="Tests\BandwidthUsageTests\UpdateBandwidthUsageNormalTests.cs" />
     <Compile Include="Tests\BandwidthUsageTests\UpdateBandwidthUsageOfflineTests.cs" />
+    <Compile Include="Tests\ConflictTests\ResolveLocalTests.cs" />
+    <Compile Include="Tests\ConflictTests\DuplicationApplyTests.cs" />
     <Compile Include="Tests\ConflictTests\LatestWriteWinsTests.cs" />
     <Compile Include="Tests\ConflictTests\ServerWinsTest.cs" />
     <Compile Include="Tests\ConsistencyTests\DeleteTests.cs" />
