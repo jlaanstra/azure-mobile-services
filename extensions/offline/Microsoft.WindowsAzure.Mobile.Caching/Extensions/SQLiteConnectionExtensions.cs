@@ -324,11 +324,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                 if (value != null && value.Value != null)
                 {
-                    //make sure string ids are inserted lowercase
-                    if (c.Name.Equals("id") && c.GetClrDataType() == typeof(string))
-                    {
-                        value = new JValue(value.Value.ToString().ToLowerInvariant());
-                    }
+                    ////make sure string ids are inserted lowercase
+                    //if (c.Name.Equals("id") && c.GetClrDataType() == typeof(string))
+                    //{
+                    //    value = new JValue(value.Value.ToString().ToLowerInvariant());
+                    //}
 
                     Action<ISQLiteStatement, int, JValue> bind;
                     if (!bindToValue.TryGetValue(c.GetClrDataType(), out bind))
@@ -347,40 +347,50 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public static void DeleteFromTable(this SQLiteConnection This, string tableName, IEnumerable<string> ids)
         {
-            int count = ids.Count();
+            int itemsLeft = ids.Count();
+            int numberOfBulkInserts = 999;
 
-            StringBuilder builder = new StringBuilder(count * 2 + 1);
-            builder.Append('(');
-            for (int i = 0; i < count; i++)
+            int batch = Math.Min(numberOfBulkInserts, itemsLeft);
+            int itemsProcessed = 0;
+
+            while (itemsLeft > 0)
             {
-                builder.Append("?,");
-            }
-            builder.Remove(builder.Length - 1, 1);
-            builder.Append(')');
-
-            string updateStatement = builder.ToString();
-
-            string sqlStatement = string.Format("DELETE FROM {0} WHERE id IN {1}",
-                tableName,
-                updateStatement
-                );
-
-            Debug.WriteLine(sqlStatement);
-
-            using (ISQLiteStatement stm = This.Prepare(sqlStatement))
-            {
-                IEnumerator<string> e = ids.GetEnumerator();
-                for (int i = 0; i < count; i++)
+                StringBuilder builder = new StringBuilder(itemsLeft * 2 + 1);
+                builder.Append('(');
+                for (int i = 0; i < itemsLeft; i++)
                 {
-                    e.MoveNext();
-                    stm.Bind(i + 1, e.Current.ToLowerInvariant());
+                    builder.Append("?,");
+                }
+                builder.Remove(builder.Length - 1, 1);
+                builder.Append(')');
+
+                string deleteStatement = builder.ToString();
+
+                string sqlStatement = string.Format("DELETE FROM {0} WHERE id IN {1}",
+                    tableName,
+                    deleteStatement
+                    );
+
+                Debug.WriteLine(sqlStatement);
+
+                using (ISQLiteStatement stm = This.Prepare(sqlStatement))
+                {
+                    int bindIndex = 1;
+                    foreach (var item in ids.Skip(itemsProcessed).Take(batch))
+                    {
+                        stm.Bind(bindIndex++, item);                        
+                    }
+
+                    SQLiteResult result = stm.Step();
+                    if (result != SQLiteResult.DONE)
+                    {
+                        throw new InvalidOperationException(result.ToString());
+                    }
                 }
 
-                SQLiteResult result = stm.Step();
-                if (result != SQLiteResult.DONE)
-                {
-                    throw new InvalidOperationException(result.ToString());
-                }
+                itemsLeft -= batch;
+                itemsProcessed += batch;
+                batch = Math.Min(numberOfBulkInserts, itemsLeft);
             }
         }
     }
