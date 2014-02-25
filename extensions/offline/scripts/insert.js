@@ -27,13 +27,7 @@ function insert(item, user, request) {
         },
         error: function (err) {
             console.error("Error occurred. Details:", err);
-            //2627: key already exists
-            if (err.code == 2627) {
-                request.respond(statusCodes.CONFLICT, err);
-            }
-            else {
-                request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
-            }
+            request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
         }
     });
 }

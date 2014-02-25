@@ -21,7 +21,7 @@ exports.sendSuccessResponse = function (request, version, results, deleted, para
     request.respond(statusCodes.OK, response);
 }
 
-exports.sendConflictResponse = function (request, type, version, currentItem, newItem, params) {
+exports.sendConflictResponse = function (request, version, currentItem, newItem, params) {
     var response = {};
 
     // copy params over
@@ -35,9 +35,8 @@ exports.sendConflictResponse = function (request, type, version, currentItem, ne
     delete currentItem.isDeleted;
     delete newItem.isDeleted;
 
-    response.conflictType = type;
     response.__version = version;
-    response.currentItem = currentitem;
+    response.currentItem = currentItem;
     response.newItem = newItem;
 
     request.respond(statusCodes.CONFLICT, response);

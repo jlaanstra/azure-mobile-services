@@ -1,12 +1,70 @@
 ﻿var responseHelper = require('../shared/responseHelper.js');
+var async = require('async');
 
 exports.resolveConflictOnServer = function (currentItem, newItem, resolveStrategy) {
     return resolveStrategy(currentItem, newItem);
 }
 
-exports.resolveConflictOnClient = function (request, currentItem, newItem) {
-    var type = conf.UpdateUpdate;
-    if (current.isDeleted && newItem.isDeleted) {
+exports.resolveConflictOnClient = function (request, currentItem, newItem, type) {
+    responseHelper.sendConflictResponse(request, currentItem.__version, currentItem, newItem, { conflictType: type });
+}
+
+exports.processResult = function (request, results, table, type, strategy) {
+
+    if (!Array.isArray(results)) {
+        results = [results];
+    }
+
+    function updateItem(item, callback) {
+        delete item.__version;
+        if (item.id) {
+            table.update(item, {
+                systemProperties: ['*'],
+                success: function () {
+                    callback(null, item);
+                },
+                error: function (err) {
+                    callback(err, null);
+                }
+            });
+        } else {
+            table.insert(item, {
+                systemProperties: ['*'],
+                success: function () {
+                    callback(null, item);
+                },
+                error: function (err) {
+                    callback(err, null);
+                }
+            });
+        }
+    }
+
+    function done(err, updatedResults) {
+        if (err !== null) {
+            console.error("Error occurred. Details:", err);
+            request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
+        }
+        else {
+            var nondeleted = [];
+            var deleted = [];
+            updatedResults.map(function (r) {
+                if (!r.isDeleted) {
+                    nondeleted.push(r);
+                } else {
+                    deleted.push(r.id);
+                }
+            });
+            responseHelper.sendSuccessResponse(request, "", nondeleted, deleted, { conflictResolved: strategy, conflictType: type });
+        }
+    }
+
+    async.map(results, updateItem, done);
+}
+
+exports.getConflictType = function (currentItem, newItem) {
+    var type = conflictType.UpdateUpdate;
+    if (currentItem.isDeleted && newItem.isDeleted) {
         type = conflictType.DeleteDelete;
     }
     else if (currentItem.isDeleted && !newItem.isDeleted) {
@@ -15,7 +73,7 @@ exports.resolveConflictOnClient = function (request, currentItem, newItem) {
     else if (!currentItem.isDeleted && newItem.isDeleted) {
         type = conflictType.UpdateDelete;
     }
-    responseHelper.sendConflictResponse(request, type, currentItem.__version, currentItem, newItem, {});
+    return type;
 }
 
 conflictType = {
@@ -28,6 +86,7 @@ conflictType = {
     ///<field name="DeleteDelete" type="Number">Both the server and the local object have been deleted.</field>
     DeleteDelete: 3,
 }
+
 
 
 // strategies

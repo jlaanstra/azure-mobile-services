@@ -2,7 +2,6 @@
 
 var responseHelper = require('../shared/responseHelper');
 var conflicts = require('../shared/conflicts');
-var async = require('async');
 
 function update(item, user, request) {
 
@@ -25,69 +24,23 @@ function update(item, user, request) {
         resolveStrategy = "latestWriteWins";
     }
 
-    var processResult = function (results) {
-
-        if (!Array.isArray(results)) {
-            results = [results];
-        }
-
-        var nondeleted = [];
-        var deleted = [];
-        results.map(function (r) {
-            if (!r.isDeleted) {
-                nondeleted.push(r);
-            } else {
-                deleted.push(r.id);
-            }
-        });
-        responseHelper.sendSuccessResponse(request, "", nondeleted, deleted, { conflictResolved: resolveStrategy });
-    }
-
-    var processResolution = function (results) {
-        if (!Array.isArray(results)) {
-            results = [results];
-        }
-        
-        function updateItem(item, callback) {
-            delete item.__version;
-            tables.current.update(item, {
-                systemProperties: ['*'],
-                success: function () {
-                    callback(null, item);
-                },
-                error: function (err) {
-                    callback(err, null);
-                }
-            });
-        }
-
-        function done(err, updatedResults) {
-            if (err !== null) {
-                console.error("Error occurred. Details:", err);
-                request.respond(statusCodes.INTERNAL_SERVER_ERROR, err);
-            }
-            else {
-                processResult(updatedResults);
-            }
-        }
-
-        async.map(results, updateItem, done);
-    }
-
     request.execute({
         systemProperties: ['*'],
         success: function () {
-            processResult(item);
+            responseHelper.sendSuccessResponse(request, "", [item], [], {});
         },
         conflict: function (serverItem) {
             item.isDeleted = false;
 
+            // determine conflict type
+            var type = conflicts.getConflictType(serverItem, item);
             //configurable conflict resolution
             if (resolveStrategy === "client") {
-                conflicts.resolveConflictOnClient(request, serverItem, item);
+                conflicts.resolveConflictOnClient(request, serverItem, item, type);
             }
             else {
-                processResolution(conflicts.resolveConflictOnServer(serverItem, item, conflicts[resolveStrategy]));
+                var results = conflicts.resolveConflictOnServer(serverItem, item, conflicts[resolveStrategy]);
+                conflicts.processResult(request, results, tables.current, type, resolveStrategy);
             }
         },
         error: function (err) {
