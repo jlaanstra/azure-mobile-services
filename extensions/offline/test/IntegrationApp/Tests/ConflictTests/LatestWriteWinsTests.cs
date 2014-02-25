@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using IntegrationApp.Models;
 using Microsoft.WindowsAzure.MobileServices;
+using Microsoft.WindowsAzure.MobileServices.Caching;
 using Microsoft.WindowsAzure.MobileServices.Test;
 using Microsoft.WindowsAzure.MobileServices.TestFramework;
 using Newtonsoft.Json.Linq;
@@ -32,7 +33,6 @@ namespace IntegrationApp.Tests.ConflictTests
             }
         }
 
-        [Tag("test")]
         [AsyncTestMethod]
         public async Task UpdateUpdateLatestWriteWins()
         {
@@ -65,14 +65,24 @@ namespace IntegrationApp.Tests.ConflictTests
             product.Version = oldVersion;
             product.Price = 45.67M;
 
-            await table.UpdateAsync(product);
+            IEnumerable<ResolvedConflict> resolved = null; 
+            try
+            {
+                await table.UpdateAsync(product);
+            }
+            catch(MobileServiceConflictsResolvedException e)
+            {
+                resolved = e.Conflicts;
+            }
 
-            Assert.AreEqual(45.67M, product.Price);
-            Assert.AreNotEqual(oldVersion, product.Version);
-            Assert.AreNotEqual(newVersion, product.Version);
+            Assert.IsNotNull(resolved);
+            Assert.AreEqual(1, resolved.Count());
+            Assert.AreEqual("latestWriteWins", resolved.First().ResolveStrategy);
+            Assert.AreEqual(ConflictType.UpdateUpdate, resolved.First().Type);
+            Assert.AreEqual(1, resolved.First().Results.Count());
+            Assert.AreEqual(45.67M, resolved.First().Results.First().Value<decimal>("Price"));
         }
 
-        [Tag("test")]
         [AsyncTestMethod]
         public async Task UpdateDeleteLatestWriteWins()
         {
@@ -110,14 +120,27 @@ namespace IntegrationApp.Tests.ConflictTests
                 await this.Storage.UpdateData("products", new JArray(new JObject() { { "id", guid }, { "__version", oldVersion } }));
             }
 
-            await table.DeleteAsync(product);
+            IEnumerable<ResolvedConflict> resolved = null;
+            try
+            {
+                await table.DeleteAsync(product);
+            }
+            catch (MobileServiceConflictsResolvedException e)
+            {
+                resolved = e.Conflicts;
+            }
+
+            Assert.IsNotNull(resolved);
+            Assert.AreEqual(1, resolved.Count());
+            Assert.AreEqual("latestWriteWins", resolved.First().ResolveStrategy);
+            Assert.AreEqual(ConflictType.UpdateDelete, resolved.First().Type);
+            Assert.AreEqual(0, resolved.First().Results.Count());
 
             Product product2 = (await table.Where(p => p.Id == guid.ToString()).ToEnumerableAsync()).FirstOrDefault();
 
             Assert.IsNull(product2);
         }
 
-        [Tag("test")]
         [AsyncTestMethod]
         public async Task DeleteUpdateLatestWriteWins()
         {
@@ -151,13 +174,27 @@ namespace IntegrationApp.Tests.ConflictTests
             product.Version = oldVersion;
             product.Price = 45.67M;
 
-            await table.UpdateAsync(product);
+            IEnumerable<ResolvedConflict> resolved = null;
+            try
+            {
+                await table.UpdateAsync(product);
+            }
+            catch (MobileServiceConflictsResolvedException e)
+            {
+                resolved = e.Conflicts;
+            }
 
-            Assert.AreEqual(45.67M, product.Price);
-            Assert.AreNotEqual(oldVersion, product.Version);
+            Assert.IsNotNull(resolved);
+            Assert.AreEqual(1, resolved.Count());
+            Assert.AreEqual("latestWriteWins", resolved.First().ResolveStrategy);
+            Assert.AreEqual(ConflictType.DeleteUpdate, resolved.First().Type);
+            Assert.AreEqual(1, resolved.First().Results.Count());
+
+            Product product2 = (await table.Where(p => p.Id == guid.ToString()).ToEnumerableAsync()).FirstOrDefault();
+
+            Assert.AreEqual(45.67M, product2.Price);
         }
 
-        [Tag("test")]
         [AsyncTestMethod]
         public async Task DeleteDeleteLatestWriteWins()
         {
@@ -184,18 +221,41 @@ namespace IntegrationApp.Tests.ConflictTests
             // store version to simulate conflict
             string oldVersion = product.Version;
 
+            //we have to add the item back to storage directly to simulate this conflict
+            JArray jObj = null;
+            using (this.Storage.Open())
+            {
+                jObj = await this.Storage.GetStoredData("products", new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(guid.ToString().Replace("'", "''")))) });
+            }
             await table.DeleteAsync(product);
+            using(this.Storage.Open())
+            {
+                await this.Storage.StoreData("products", jObj, false);
+            }
 
             //put id back
             product.Id = guid.ToString();
             product.Version = oldVersion;
 
-            await table.DeleteAsync(product);
+            IEnumerable<ResolvedConflict> resolved = null;
+            try
+            {
+                await table.DeleteAsync(product);
+            }
+            catch (MobileServiceConflictsResolvedException e)
+            {
+                resolved = e.Conflicts;
+            }
+
+            Assert.IsNotNull(resolved);
+            Assert.AreEqual(1, resolved.Count());
+            Assert.AreEqual("latestWriteWins", resolved.First().ResolveStrategy);
+            Assert.AreEqual(ConflictType.DeleteDelete, resolved.First().Type);
+            Assert.AreEqual(0, resolved.First().Results.Count());
 
             Product product2 = (await table.Where(p => p.Id == guid.ToString()).ToEnumerableAsync()).FirstOrDefault();
 
             Assert.IsNull(product2);
         }
-
     }
 }

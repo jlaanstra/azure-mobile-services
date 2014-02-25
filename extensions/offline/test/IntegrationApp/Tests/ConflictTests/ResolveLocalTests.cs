@@ -12,10 +12,12 @@ using Newtonsoft.Json.Linq;
 
 namespace IntegrationApp.Tests.ConflictTests
 {
-    public class ServerWinsTest : OfflineTestBase
+    public class ResolveLocalTests : OfflineTestBase
     {
         public override async Task Initialize()
         {
+            this.Resolver = new LatestWriteWinsResolver();
+
             await base.Initialize();
 
             await this.PrepareTableAsync(this.OfflineClient);
@@ -34,7 +36,7 @@ namespace IntegrationApp.Tests.ConflictTests
         }
 
         [AsyncTestMethod]
-        public async Task UpdateUpdateServerWins()
+        public async Task UpdateUpdateLocalResolve()
         {
             IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
 
@@ -59,7 +61,7 @@ namespace IntegrationApp.Tests.ConflictTests
             // store version to simulate conflict
             string oldVersion = product.Version;
 
-            await table.UpdateAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "serverWins" } });
+            await table.UpdateAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "client" } });
 
             string newVersion = product.Version;
             product.Version = oldVersion;
@@ -68,7 +70,7 @@ namespace IntegrationApp.Tests.ConflictTests
             IEnumerable<ResolvedConflict> resolved = null;
             try
             {
-                await table.UpdateAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "serverWins" } });
+                await table.UpdateAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "client" } });
             }
             catch (MobileServiceConflictsResolvedException e)
             {
@@ -77,14 +79,14 @@ namespace IntegrationApp.Tests.ConflictTests
 
             Assert.IsNotNull(resolved);
             Assert.AreEqual(1, resolved.Count());
-            Assert.AreEqual("serverWins", resolved.First().ResolveStrategy);
+            Assert.AreEqual("client", resolved.First().ResolveStrategy);
             Assert.AreEqual(ConflictType.UpdateUpdate, resolved.First().Type);
             Assert.AreEqual(1, resolved.First().Results.Count());
-            Assert.AreEqual(20.79M, resolved.First().Results.First().Value<decimal>("Price"));
+            Assert.AreEqual(45.67M, resolved.First().Results.First().Value<decimal>("Price"));       
         }
 
         [AsyncTestMethod]
-        public async Task UpdateDeleteServerWins()
+        public async Task UpdateDeleteLocalResolve()
         {
             IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
 
@@ -109,7 +111,7 @@ namespace IntegrationApp.Tests.ConflictTests
             // store version to simulate conflict
             string oldVersion = product.Version;
 
-            await table.UpdateAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "serverWins" } });
+            await table.UpdateAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "client" } });
 
             string newVersion = product.Version;
             product.Version = oldVersion;
@@ -123,7 +125,7 @@ namespace IntegrationApp.Tests.ConflictTests
             IEnumerable<ResolvedConflict> resolved = null;
             try
             {
-                await table.DeleteAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "serverWins" } });
+                await table.DeleteAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "client" } });
             }
             catch (MobileServiceConflictsResolvedException e)
             {
@@ -132,20 +134,17 @@ namespace IntegrationApp.Tests.ConflictTests
 
             Assert.IsNotNull(resolved);
             Assert.AreEqual(1, resolved.Count());
-            Assert.AreEqual("serverWins", resolved.First().ResolveStrategy);
+            Assert.AreEqual("client", resolved.First().ResolveStrategy);
             Assert.AreEqual(ConflictType.UpdateDelete, resolved.First().Type);
-            Assert.AreEqual(1, resolved.First().Results.Count());
+            Assert.AreEqual(0, resolved.First().Results.Count());
 
             Product product2 = (await table.Where(p => p.Id == guid.ToString()).ToEnumerableAsync()).FirstOrDefault();
 
-            Assert.IsNotNull(product2);            
-            Assert.AreEqual(20.79M, product2.Price);
-            Assert.AreNotEqual(newVersion, product2.Version);
-            Assert.AreNotEqual(oldVersion, product2.Version);
+            Assert.IsNull(product2);
         }
 
         [AsyncTestMethod]
-        public async Task DeleteUpdateServerWins()
+        public async Task DeleteUpdateLocalResolve()
         {
             IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
 
@@ -170,7 +169,7 @@ namespace IntegrationApp.Tests.ConflictTests
             // store version to simulate conflict
             string oldVersion = product.Version;
 
-            await table.DeleteAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "serverWins" } });
+            await table.DeleteAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "client" } });
 
             //put id back
             product.Id = guid.ToString();
@@ -180,7 +179,7 @@ namespace IntegrationApp.Tests.ConflictTests
             IEnumerable<ResolvedConflict> resolved = null;
             try
             {
-                await table.UpdateAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "serverWins" } });
+                await table.UpdateAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "client" } });
             }
             catch (MobileServiceConflictsResolvedException e)
             {
@@ -189,17 +188,17 @@ namespace IntegrationApp.Tests.ConflictTests
 
             Assert.IsNotNull(resolved);
             Assert.AreEqual(1, resolved.Count());
-            Assert.AreEqual("serverWins", resolved.First().ResolveStrategy);
+            Assert.AreEqual("client", resolved.First().ResolveStrategy);
             Assert.AreEqual(ConflictType.DeleteUpdate, resolved.First().Type);
-            Assert.AreEqual(0, resolved.First().Results.Count());
+            Assert.AreEqual(1, resolved.First().Results.Count());
 
             Product product2 = (await table.Where(p => p.Id == guid.ToString()).ToEnumerableAsync()).FirstOrDefault();
 
-            Assert.IsNull(product2);           
+            Assert.AreEqual(45.67M, product2.Price);
         }
 
         [AsyncTestMethod]
-        public async Task DeleteDeleteServerWins()
+        public async Task DeleteDeleteLocalResolve()
         {
             IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
 
@@ -230,7 +229,7 @@ namespace IntegrationApp.Tests.ConflictTests
             {
                 jObj = await this.Storage.GetStoredData("products", new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(guid.ToString().Replace("'", "''")))) });
             }
-            await table.DeleteAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "serverWins" } });
+            await table.DeleteAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "client" } });
             using (this.Storage.Open())
             {
                 await this.Storage.StoreData("products", jObj, false);
@@ -243,7 +242,7 @@ namespace IntegrationApp.Tests.ConflictTests
             IEnumerable<ResolvedConflict> resolved = null;
             try
             {
-                await table.DeleteAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "serverWins" } });
+                await table.DeleteAsync(product, new Dictionary<string, string>() { { "resolveStrategy", "client" } });
             }
             catch (MobileServiceConflictsResolvedException e)
             {
@@ -252,7 +251,7 @@ namespace IntegrationApp.Tests.ConflictTests
 
             Assert.IsNotNull(resolved);
             Assert.AreEqual(1, resolved.Count());
-            Assert.AreEqual("serverWins", resolved.First().ResolveStrategy);
+            Assert.AreEqual("client", resolved.First().ResolveStrategy);
             Assert.AreEqual(ConflictType.DeleteDelete, resolved.First().Type);
             Assert.AreEqual(0, resolved.First().Results.Count());
 

@@ -31,8 +31,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Test
             ToggableNetworkInformation network = new ToggableNetworkInformation();
             network.IsOnline = true;
             this.NetworkInformation = network;
-            ISynchronizer synchronizer = new TimestampSynchronizer(this.Storage);
-            this.CacheProvider = new TimestampCacheProvider(this.Storage, network, synchronizer, this.AreWeCachingThis);
+            this.Synchronizer = new TimestampSynchronizer(this.Storage, this.Resolver ?? new NoConflictResolver());
+            this.CacheProvider = new TimestampCacheProvider(this.Storage, network, this.Synchronizer, this.AreWeCachingThis);
 
             this.OfflineClient = new MobileServiceClient(offlineRuntimeUrl, offlineRuntimeKey, new LoggingHttpHandler(this), new CacheHandler(this.CacheProvider));
 
@@ -40,6 +40,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Test
 
             return Task.FromResult(0);
         }
+        
+        public IConflictResolver Resolver { get; set; }
 
         public MobileServiceClient OfflineClient { get; private set; }
 
@@ -48,6 +50,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Test
         public ToggableNetworkInformation NetworkInformation { get; private set; }
 
         public ICacheProvider CacheProvider { get; private set; }
+
+        public ISynchronizer Synchronizer { get; private set; }
 
         public IStructuredStorage Storage { get; private set; }
 
