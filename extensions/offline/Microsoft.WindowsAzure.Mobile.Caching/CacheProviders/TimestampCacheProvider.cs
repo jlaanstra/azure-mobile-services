@@ -18,7 +18,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public class TimestampCacheProvider : BaseCacheProvider
     {
-
         private readonly INetworkInformation network;
         private readonly IStructuredStorage storage;
         private readonly ISynchronizer synchronizer;
@@ -54,10 +53,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
             //LookupAsync adds id
             string id = UriHelper.GetIdFromUri(requestUri);
-            if (string.IsNullOrEmpty(id))
-            {
-                //TODO
-            }
 
             if (await network.IsConnectedToInternet())
             {
@@ -142,22 +137,26 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             string rawContent = await content.ReadAsStringAsync();
             JObject contentObject = JObject.Parse(rawContent);
 
+            //ensure the item has an id
+            string id = contentObject.Value<string>("id");
+            if (string.IsNullOrEmpty(id))
+            {
+                id = Guid.NewGuid().ToString();
+                contentObject["id"] = id;
+            }
+
             if (await network.IsConnectedToInternet())
             {
                 Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
-                await this.synchronizer.UploadChanges(tableUri, http);
-                JObject json = await this.synchronizer.UploadInsert(contentObject, tableUri, http, parameters);
+                contentObject["status"] = (int)ItemStatus.Inserted;
+                JObject json = await this.synchronizer.UploadChanges(tableUri, http, contentObject, parameters);
                 //insert expects a single item so we return the first one
-                result = ResponseHelper.GetResultsJArrayFromJson(json).First;
+                result = ResponseHelper.GetResultsJArrayFromJson(json).FirstOrDefault(t => t.Value<string>("id").Equals(id));
             }
             else
             {
                 this.synchronizer.NotifyOfUnsynchronizedChange();
-                                
-                if (contentObject["id"] == null)
-                {
-                    contentObject["id"] = Guid.NewGuid().ToString();
-                }
+                
                 contentObject["__version"] = null;
                 //set status to inserted
                 contentObject["status"] = (int)ItemStatus.Inserted;
@@ -194,50 +193,49 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
             Contract.Requires<ArgumentNullException>(content != null, "content");
 
+            // get id
             string id = UriHelper.GetIdFromUri(requestUri);
             if (string.IsNullOrEmpty(id))
             {
                 throw new InvalidOperationException("Can't retrieve id from Uri.");
             }
 
-            string tableName = UriHelper.GetTableNameFromUri(requestUri);
-            IDictionary<string, string> parameters = UriHelper.GetQueryParameters(requestUri);
-
             JToken result;
             string rawContent = await content.ReadAsStringAsync();
             JObject contentObject = JObject.Parse(rawContent);
 
+            // set __version
+            if (http.OriginalRequest != null)
+            {
+                EntityTagHeaderValue tag = http.OriginalRequest.Headers.IfMatch.FirstOrDefault();
+                if (tag != null)
+                {
+                    //trim "
+                    contentObject["__version"] = tag.Tag.Trim(new char[] { '"' });
+                }
+            }
+
+            // get parameters
+            IDictionary<string, string> parameters = UriHelper.GetQueryParameters(requestUri);
+            
             if (await network.IsConnectedToInternet())
             {
                 Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
                 //make sure we synchronize
-                await this.synchronizer.UploadChanges(tableUri, http);
-                JObject json = await this.synchronizer.UploadUpdate(contentObject, tableUri, http, parameters);
-                //update expects a single item so we return the first one
-                result = ResponseHelper.GetResultsJArrayFromJson(json).First;
-                //TODO
-                if(result == null)
-                {
-                    result = contentObject;
-                }
+                contentObject["status"] = (int)ItemStatus.Changed;
+                JObject json = await this.synchronizer.UploadChanges(tableUri, http, contentObject, parameters);
+                //update expects a single item so we return the first one that matches the id
+                result = ResponseHelper.GetResultsJArrayFromJson(json).FirstOrDefault(t => t.Value<string>("id").Equals(id));
             }
             else
             {
                 this.synchronizer.NotifyOfUnsynchronizedChange();
-
-                if(http.OriginalRequest != null)
-                {
-                    EntityTagHeaderValue tag = http.OriginalRequest.Headers.IfMatch.FirstOrDefault();
-                    if (tag != null)
-                    {
-                        //trim "
-                        contentObject["__version"] = tag.Tag.Trim(new char[] { '"' });
-                    }
-                }
+                
+                string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
                 using (await this.storage.Open())
                 {
-                    JArray arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(id))) });
+                    JArray arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(id.Replace("'", "''")))) });
                     if (arr.Count > 0 && arr.First.Value<int>("status") == (int)ItemStatus.Unchanged)
                     {
                         //set status to changed
@@ -260,6 +258,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
 
+            // get id
             string id = UriHelper.GetIdFromUri(requestUri);
             if (string.IsNullOrEmpty(id))
             {
@@ -267,13 +266,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
 
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
+
+            // get parameters
             IDictionary<string, string> parameters = UriHelper.GetQueryParameters(requestUri);
 
             if (await network.IsConnectedToInternet())
             {
                 Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
-                //make sure we synchronize
-                await this.synchronizer.UploadChanges(tableUri, http);
                 JArray arr = new JArray();
                 using (await this.storage.Open())
                 {
@@ -281,7 +280,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 }
                 if (arr.Count > 0)
                 {
-                    JObject json = await this.synchronizer.UploadDelete(arr.First as JObject, tableUri, http, parameters);
+                    JObject item = arr.First as JObject;
+                    item["status"] = (int)ItemStatus.Deleted;
+                    //make sure we synchronize
+                    JObject res = await this.synchronizer.UploadChanges(tableUri, http, item, parameters);
                 }
             }
             else

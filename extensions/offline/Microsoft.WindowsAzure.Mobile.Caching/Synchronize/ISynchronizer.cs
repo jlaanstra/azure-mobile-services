@@ -9,17 +9,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public interface ISynchronizer
     {
-        event EventHandler<Conflict> Conflict;
         void NotifyOfUnsynchronizedChange();
 
         Task<JObject> DownloadChanges(Uri requestUri, IHttp http);
 
-        Task UploadChanges(Uri tableUri, IHttp http);
-
-        Task<JObject> UploadInsert(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null);
-
-        Task<JObject> UploadUpdate(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null);
-
-        Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null);
+        Task<JObject> UploadChanges(Uri tableUri, IHttp http, JObject item = null, IDictionary<string, string> parameters = null);
     }
 }

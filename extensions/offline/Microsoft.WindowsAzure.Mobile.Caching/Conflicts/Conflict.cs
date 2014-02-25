@@ -16,10 +16,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <param name="type">The type.</param>
         /// <param name="currentItem">The current item.</param>
         /// <param name="newItem">The new item.</param>
-        internal Conflict(string version, ConflictType type, JObject currentItem, JObject newItem)
+        public Conflict(string __version, ConflictType conflictType, JObject currentItem, JObject newItem)
         {
-            this.Version = version;
-            this.Type = type;
+            this.Version = __version;
+            this.Type = conflictType;
             this.CurrentItem = currentItem;
             this.NewItem = newItem;
         }
@@ -31,16 +31,5 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         public JObject CurrentItem { get; private set; }
 
         public JObject NewItem { get; private set; }
-    }
-
-    public enum ConflictType
-    {
-        UpdateUpdate = 0,
-
-        UpdateDelete = 1,
-
-        DeleteUpdate = 2,
-
-        DeleteDelete = 3,
     }
 }

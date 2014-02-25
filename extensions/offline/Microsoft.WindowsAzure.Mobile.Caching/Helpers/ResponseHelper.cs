@@ -118,5 +118,21 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             return resp;
         }
+
+        public static JObject MergeResponses(JObject current, JObject response)
+        {
+            var currResults = ResponseHelper.GetResultsJArrayFromJson(current);
+            var currDeletes = ResponseHelper.GetDeletedJArrayFromJson(current);
+            foreach (var obj in ResponseHelper.GetResultsJArrayFromJson(response))
+            {
+                currResults.Add(obj);
+            }
+            foreach (var obj in ResponseHelper.GetDeletedJArrayFromJson(response))
+            {
+                currDeletes.Add(obj);
+            }
+
+            return current;
+        }
     }
 }

@@ -17,34 +17,21 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
     public class TimestampSynchronizer : ISynchronizer
     {
         private readonly IStructuredStorage storage;
+        private readonly IConflictResolver conflictResolver;
         private readonly AsyncLazy<bool> timestampsLoaded;
-
-        /// <summary>
-        /// We are going to be smart by using this value.
-        /// </summary>
-        /// <param name="storage">The storage.</param>
         private bool hasLocalChanges = true;
-        
-        public event EventHandler<Conflict> Conflict;
-
-        protected virtual void OnConflict(Conflict conflict)
-        {
-            var handler = this.Conflict;
-            if(handler != null)
-            {
-                handler(this, conflict);
-            }
-        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TimestampSynchronizer"/> class.
         /// </summary>
         /// <param name="storage">The storage.</param>
-        public TimestampSynchronizer(IStructuredStorage storage)
+        public TimestampSynchronizer(IStructuredStorage storage, IConflictResolver conflictResolver)
         {
             Contract.Requires<ArgumentNullException>(storage != null, "storage");
+            Contract.Requires<ArgumentNullException>(conflictResolver != null, "conflictResolver");
 
             this.storage = storage;
+            this.conflictResolver = conflictResolver;
         }
 
         public async Task<JObject> DownloadChanges(Uri requestUri, IHttp http)
@@ -90,55 +77,148 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// <param name="tableUri">The table URI.</param>
         /// <param name="getResponse">The get response.</param>
         /// <returns></returns>
-        public async Task UploadChanges(Uri tableUri, IHttp http)
+        public async Task<JObject> UploadChanges(Uri tableUri, IHttp http, JObject item = null, IDictionary<string, string> parameters = null)
         {
             Contract.Requires<ArgumentNullException>(tableUri != null, "tableUri");
             Contract.Requires<ArgumentNullException>(http != null, "http");
-
-            // return is there is nothing to sync
-            if (!hasLocalChanges)
-            {
-                return;
-            }
-
+            Contract.Requires<ArgumentException>(
+                item == null || ((IDictionary<string, JToken>)item).ContainsKey("status"), "item must have status property.");
+            Contract.Requires<ArgumentException>(
+                item == null || ((IDictionary<string, JToken>)item).ContainsKey("id"), "item must have id property.");
+            
             string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
-            JArray localChanges = new JArray();
+            if(item == null && !hasLocalChanges)
+            {
+                return new JObject();
+            }
+
+            IEnumerable<JToken> localChanges = new JArray();
             // all communication with the database should be on the same thread
             using (await this.storage.Open())
             {
                 //sent all local changes 
                 localChanges = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery("status ne 0") });
             }
-            foreach (JObject item in localChanges)
+            if(item != null)
             {
-                try
-                {
-                    JToken status;
-                    if (item.TryGetValue("status", out status))
-                    {
-                        ItemStatus itemStatus = (ItemStatus)(int)status;
-                        item.Remove("status");
-                        //preform calls based on status: insert, change, delete 
-                        switch (itemStatus)
-                        {
-                            case ItemStatus.Inserted:
-                                await this.UploadInsert(item, tableUri, http);
-                                break;
-                            case ItemStatus.Changed:
-                                await this.UploadUpdate(item, tableUri, http);
-                                break;
-                            case ItemStatus.Deleted:
-                                await this.UploadDelete(item, tableUri, http);
-                                break;
-                        };
-                    }
-                }
-                catch { }
+                string id = item.Value<string>("id");
+                localChanges = new JObject[] { item }.Concat(localChanges.Where(t => !t.Value<string>("id").Equals(id)));
             }
 
-            //we have synchronized everything
-            this.hasLocalChanges = false;
+            List<ResolvedConflict> conflicts = new List<ResolvedConflict>();
+
+            JObject response = new JObject();
+            response.Add("results", new JArray());
+            response.Add("deleted", new JArray());
+
+            foreach (JObject change in localChanges)
+            {
+                Func<JObject,Task<JObject>> action = null;
+                action = async (jObj) =>
+                {
+                    Conflict conflict = null;
+                    try
+                    {
+                        return await this.ProcessJObject(jObj, tableUri, http, parameters);
+                    }
+                    catch (HttpStatusCodeException e)
+                    {
+                        if (e.StatusCode == HttpStatusCode.Conflict)
+                        {
+                            conflict = JsonConvert.DeserializeObject<Conflict>(e.Message);
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+
+                    // Conflicts on the client
+                    if(conflict != null)
+                    {
+                        ConflictResult res = await conflictResolver.Resolve(conflict);
+                        string currentId = change.Value<string>("id");
+                        List<JObject> results = new List<JObject>();
+                        foreach(var it in res.NewItems)
+                        {
+                            it["id"] = Guid.NewGuid().ToString();
+                            it.Remove("__version");
+                            it["status"] = (int)ItemStatus.Inserted;
+                            JObject resp = await action(it);
+                            foreach(JObject resultItem in ResponseHelper.GetResultsJArrayFromJson(resp).OfType<JObject>())
+                            {
+                                results.Add(resultItem);
+                            }
+                        }
+                        foreach (var it in res.ModifiedItems)
+                        {
+                            it["status"] = (int)ItemStatus.Changed;
+                            JObject resp = await action(it);
+                            foreach (JObject resultItem in ResponseHelper.GetResultsJArrayFromJson(resp).OfType<JObject>())
+                            {
+                                results.Add(resultItem);
+                            }
+                        }
+                        foreach (var it in res.DeletedItems)
+                        {
+                            it["status"] = (int)ItemStatus.Deleted;
+                            JObject resp = await action(it);
+                            foreach (JObject resultItem in ResponseHelper.GetResultsJArrayFromJson(resp).OfType<JObject>())
+                            {
+                                results.Add(resultItem);
+                            }
+                        }
+                        conflicts.Add(new ResolvedConflict("client", conflict.Type, results));
+                    }
+                    return ResponseHelper.CreateSyncResponseWithItems(null, null);
+                };
+
+                JObject result = await action(change);
+                // check if conflict was resolved on the server
+                string resolveStrategy = result.Value<string>("conflictResolved");
+                if(resolveStrategy != null)
+                {
+                    conflicts.Add(new ResolvedConflict(resolveStrategy, (ConflictType)result.Value<int>("conflictType"), ResponseHelper.GetResultsJArrayFromJson(result).OfType<JObject>()));
+                }
+                response = ResponseHelper.MergeResponses(response, result);
+            }
+
+            // if we have conflicts resolved responses might not conform to Mobile Services formats 
+            // so we throw to work around.
+            if(conflicts.Count > 0)
+            {
+                throw new MobileServiceConflictsResolvedException(conflicts);
+            }
+
+            response.Add("__version", string.Empty);
+            return response;
+        }
+
+        private async Task<JObject> ProcessJObject(JObject change, Uri tableUri, IHttp http, IDictionary<string, string> parameters)
+        {
+            JObject result = null;
+            JToken status;
+            if (change.TryGetValue("status", out status))
+            {
+                ItemStatus itemStatus = (ItemStatus)(int)status;
+                change.Remove("status");
+                //preform calls based on status: insert, change, delete 
+                switch (itemStatus)
+                {
+                    case ItemStatus.Inserted:
+                        result = await this.UploadInsert(change, tableUri, http, parameters);
+                        break;
+                    case ItemStatus.Changed:
+                        result = await this.UploadUpdate(change, tableUri, http, parameters);
+                        break;
+                    case ItemStatus.Deleted:
+                        result = await this.UploadDelete(change, tableUri, http, parameters);
+                        break;
+                };
+            }
+
+            return result;
         }
 
         public async Task<JObject> UploadInsert(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
@@ -178,17 +258,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 version = versionToken.ToString();
             }
-            else if(http.OriginalRequest != null)
-            {
-                EntityTagHeaderValue tag = http.OriginalRequest.Headers.IfMatch.FirstOrDefault();
-                if (tag != null)
-                {
-                    //trim "
-                    version = tag.Tag.Trim(new char[] { '"' });
-                }
-            }
-
-            if(version == null)
+            else
             {
                 throw new InvalidOperationException("Cannot update value without __version.");
             }
@@ -206,35 +276,19 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             HttpRequestMessage req = http.CreateRequest(new HttpMethod("PATCH"), updateUri, new Dictionary<string, string>() { { "If-Match", string.Format("\"{0}\"", version) } });
             req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
 
-            try
+            JObject response = await http.GetJsonAsync(req);
+            JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
+            JArray deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
+
+            string tableName = UriHelper.GetTableNameFromUri(tableUri);
+
+            using (await this.storage.Open())
             {
-                JObject response = await http.GetJsonAsync(req);
-                JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
-                JArray deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
-
-                string tableName = UriHelper.GetTableNameFromUri(tableUri);
-
-                using (await this.storage.Open())
-                {
-                    await this.storage.StoreData(tableName, results);
-                    await this.storage.RemoveStoredData(tableName, deleted);
-                }
-
-                return response;
+                await this.storage.StoreData(tableName, results);
+                await this.storage.RemoveStoredData(tableName, deleted);
             }
-            catch(HttpStatusCodeException e)
-            {
-                if(e.StatusCode == HttpStatusCode.Conflict)
-                {
-                    Conflict c = JsonConvert.DeserializeObject<Conflict>(e.Message);
-                    if(c != null)
-                    {
-                        this.OnConflict(c);
-                        return ResponseHelper.CreateSyncResponseWithItems(c.CurrentItem, null);
-                    }
-                }
-                return ResponseHelper.CreateSyncResponseWithItems(null, null);
-            }
+
+            return response;            
         }
 
         public async Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
@@ -248,35 +302,19 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             HttpRequestMessage req = http.CreateRequest(HttpMethod.Delete, deleteUri);
 
-            try
+            JObject response = await http.GetJsonAsync(req);
+            JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
+            JArray deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
+
+            string tableName = UriHelper.GetTableNameFromUri(tableUri);
+
+            using (await this.storage.Open())
             {
-                JObject response = await http.GetJsonAsync(req);
-                JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
-                JArray deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
-
-                string tableName = UriHelper.GetTableNameFromUri(tableUri);
-
-                using (await this.storage.Open())
-                {
-                    await this.storage.StoreData(tableName, results);
-                    await this.storage.RemoveStoredData(tableName, deleted);
-                }
-
-                return response;
+                await this.storage.StoreData(tableName, results);
+                await this.storage.RemoveStoredData(tableName, deleted);
             }
-            catch (HttpStatusCodeException e)
-            {
-                if (e.StatusCode == HttpStatusCode.Conflict)
-                {
-                    Conflict c = JsonConvert.DeserializeObject<Conflict>(e.Message);
-                    if (c != null)
-                    {
-                        this.OnConflict(c);
-                        return ResponseHelper.CreateSyncResponseWithItems(null, c.CurrentItem["id"]);
-                    }
-                }
-                return ResponseHelper.CreateSyncResponseWithItems(null, null);
-            }
+
+            return response;            
         }
 
         public void NotifyOfUnsynchronizedChange()
@@ -359,5 +397,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             return parametersString;
         }
+
+        
     }
 }
