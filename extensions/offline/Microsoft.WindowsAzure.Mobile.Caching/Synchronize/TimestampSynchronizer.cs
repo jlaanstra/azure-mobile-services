@@ -98,7 +98,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             using (await this.storage.Open())
             {
                 //sent all local changes 
-                localChanges = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery("status ne 0") });
+                localChanges = await this.storage.GetItemsToSynchronize(tableName);
             }
             if(item != null)
             {

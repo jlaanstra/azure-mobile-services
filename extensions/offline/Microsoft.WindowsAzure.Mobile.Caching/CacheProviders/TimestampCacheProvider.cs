@@ -235,8 +235,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                 using (await this.storage.Open())
                 {
-                    JArray arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(id.Replace("'", "''")))) });
-                    if (arr.Count > 0 && arr.First.Value<int>("status") == (int)ItemStatus.Unchanged)
+                    JObject arr = await this.storage.GetItemWithId(tableName, id);
+                    if (arr != null && arr.Value<int>("status") == (int)ItemStatus.Unchanged)
                     {
                         //set status to changed
                         contentObject["status"] = (int)ItemStatus.Changed;
@@ -273,17 +273,16 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             if (await network.IsConnectedToInternet())
             {
                 Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
-                JArray arr = new JArray();
+                JObject arr = null;
                 using (await this.storage.Open())
                 {
-                    arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(id.Replace("'", "''")))) });
+                    arr = await this.storage.GetItemWithId(tableName, id);
                 }
-                if (arr.Count > 0)
+                if (arr != null)
                 {
-                    JObject item = arr.First as JObject;
-                    item["status"] = (int)ItemStatus.Deleted;
+                    arr["status"] = (int)ItemStatus.Deleted;
                     //make sure we synchronize
-                    JObject res = await this.synchronizer.UploadChanges(tableUri, http, item, parameters);
+                    JObject res = await this.synchronizer.UploadChanges(tableUri, http, arr, parameters);
                 }
             }
             else
@@ -294,8 +293,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 // we can just remove it locally and the server will never know about its existence
                 using (await this.storage.Open())
                 {
-                    JArray arr = await this.storage.GetStoredData(tableName, new StaticQueryOptions() { Filter = new FilterQuery(string.Format("id eq '{0}'", Uri.EscapeDataString(id.Replace("'", "''")))) });
-                    if (arr.Count > 0 && arr.First.Value<int>("status") != (int)ItemStatus.Inserted)
+                    JObject arr = await this.storage.GetItemWithId(tableName, id);
+                    if (arr != null && arr.Value<int>("status") != (int)ItemStatus.Inserted)
                     {
                         //update status of current item 
                         JArray deleted = new JArray();

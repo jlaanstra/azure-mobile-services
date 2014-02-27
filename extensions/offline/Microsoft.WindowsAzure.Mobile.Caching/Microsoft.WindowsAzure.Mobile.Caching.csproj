@@ -161,6 +161,7 @@
     </Compile>
     <Compile Include="Helpers\ResponseHelper.cs" />
     <Compile Include="Storage\IStructuredStorage.cs" />
+    <Compile Include="Storage\IStructuredStorageExtensions.cs" />
     <Compile Include="Storage\SQLiteStructuredStorage.cs" />
     <Compile Include="Synchronize\ISynchronizer.cs" />
     <Compile Include="Synchronize\TimestampSynchronizer.cs" />

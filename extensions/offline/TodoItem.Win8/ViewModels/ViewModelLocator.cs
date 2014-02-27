@@ -37,15 +37,7 @@ namespace Todo.ViewModels
             ServiceLocator.SetLocatorProvider(() => SimpleIoc.Default);
 
             ToggableNetworkInformation networkInfo = new ToggableNetworkInformation();
-
-            SimpleIoc.Default.Register<INetworkInformation>(() => networkInfo);
-
-            SimpleIoc.Default.Register<IStructuredStorage>(() => new SQLiteStructuredStorage("cache"));
-            SimpleIoc.Default.Register<ISynchronizer, TimestampSynchronizer>();
-            SimpleIoc.Default.Register<Func<Uri, bool>>(() => (u => true));
-            //SimpleIoc.Default.Register<ICacheProvider, DisabledCacheProvider>();
-            SimpleIoc.Default.Register<ICacheProvider, TimestampCacheProvider>();
-
+            SimpleIoc.Default.Register<INetworkInformation>(() => networkInfo);            
             SimpleIoc.Default.Register<NetworkInformationDelegate>(() =>
             {
                 return new NetworkInformationDelegate(() => networkInfo.IsOnline, b => networkInfo.IsOnline = b);
@@ -53,14 +45,12 @@ namespace Todo.ViewModels
 
             SimpleIoc.Default.Register<MainViewModel>();
 
-            DelegatingHandler handler = new CacheHandler(SimpleIoc.Default.GetInstance<ICacheProvider>());
-
-            // Configure your mobile service here
+            // Configure your mobile service
             MobileServiceClient MobileService = new MobileServiceClient(
                 Constants.MobileServiceUrl,
-                Constants.MobileServiceKey,
-                handler
+                Constants.MobileServiceKey
             );
+            MobileService = MobileService.UseOfflineDataCapabilitiesForTables(SimpleIoc.Default.GetInstance<INetworkInformation>());
 
             SimpleIoc.Default.Register<IMobileServiceClient>(() => MobileService);
         }
