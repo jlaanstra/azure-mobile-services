@@ -9,7 +9,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public static class MobileServiceClientExtensions
     {
-        public static MobileServiceClient EnableOfflineDataCapabilitiesForTables(this MobileServiceClient This, INetworkInformation networkInfo, IConflictResolver localConflictResolver = null)
+        public static MobileServiceClient UseOfflineDataCapabilitiesForTables(this MobileServiceClient This, INetworkInformation networkInfo, IConflictResolver localConflictResolver = null)
         {
             IStructuredStorage storage = new SQLiteStructuredStorage("Microsoft.WindowsAzure.Mobile.Caching.db");
             ISynchronizer synchronizer = new TimestampSynchronizer(storage, localConflictResolver ?? new NoConflictResolver());
