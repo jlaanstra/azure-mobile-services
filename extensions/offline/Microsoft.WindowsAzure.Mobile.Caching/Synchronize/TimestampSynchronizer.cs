@@ -50,22 +50,19 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             //send the timestamped request
             http.OriginalRequest.RequestUri = stampedRequestUri;
-            HttpResponseMessage response = await http.SendOriginalAsync();
-            JObject json = await ResponseHelper.GetResponseAsJObject(response.Content);
-            
+                        
             // get the tablename out of the uri
             string tableName = UriHelper.GetTableNameFromUri(requestUri);
 
+            JObject json = await this.ProcessRequest(http.OriginalRequest, tableName, http);
+            
             using (await this.storage.Open())
             {
                 JToken newtimestamp;
                 if (json.TryGetValue("__version", out newtimestamp))
                 {
                     await this.SetLastTimestampForRequest(requestUri, newtimestamp.ToString());
-                }
-
-                await this.storage.StoreData(tableName, ResponseHelper.GetResultsJArrayFromJson(json));
-                await this.storage.RemoveStoredData(tableName, ResponseHelper.GetDeletedJArrayFromJson(json));
+                }                
             }
 
             return json;
@@ -220,7 +217,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             return result;
         }
-        private async Task<JObject> ProcessRequest(HttpRequestMessage req, Uri tableUri, IHttp http)
+        private async Task<JObject> ProcessRequest(HttpRequestMessage req, string tableName, IHttp http)
         {
             JObject response = await http.GetJsonAsync(req);
             JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
@@ -229,9 +226,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 jObj["status"] = (int)ItemStatus.Unchanged;
             }
-
-            string tableName = UriHelper.GetTableNameFromUri(tableUri);
-
+            
             using (await this.storage.Open())
             {
                 await this.storage.StoreData(tableName, results);
@@ -260,7 +255,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             HttpRequestMessage req = http.CreateRequest(HttpMethod.Post, insertUri);
             req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
 
-            return ProcessRequest(req, tableUri, http);
+            return ProcessRequest(req, UriHelper.GetTableNameFromUri(tableUri), http);
         }
 
         public Task<JObject> UploadUpdate(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
@@ -289,7 +284,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             HttpRequestMessage req = http.CreateRequest(new HttpMethod("PATCH"), updateUri, new Dictionary<string, string>() { { "If-Match", string.Format("\"{0}\"", version) } });
             req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
 
-            return ProcessRequest(req, tableUri, http);            
+            return ProcessRequest(req, UriHelper.GetTableNameFromUri(tableUri), http);            
         }
 
         public Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
@@ -303,7 +298,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             HttpRequestMessage req = http.CreateRequest(HttpMethod.Delete, deleteUri);
 
-            return ProcessRequest(req, tableUri, http);
+            return ProcessRequest(req, UriHelper.GetTableNameFromUri(tableUri), http);
         }
 
         public void NotifyOfUnsynchronizedChange()

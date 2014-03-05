@@ -146,16 +146,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             }
 
             Assert.IsNotNull(ex);
-
-            //Assert.IsNotNull(exp);
-            //Assert.IsTrue(exp.GetType() == typeof(ODataMemberExpression));
-
-            //ODataMemberExpression memExp = (ODataMemberExpression)exp;
-            //Assert.AreEqual(ExpressionType.MemberAccess, memExp.ExpressionType);
-            //Assert.AreEqual("Product", memExp.Member);
-
-            //Assert.AreEqual(ExpressionType.MemberAccess, memExp.Instance.ExpressionType);
-            //Assert.AreEqual("IsAvailable", ((ODataMemberExpression)memExp.Instance).Member);
         }
 
         [TestMethod]

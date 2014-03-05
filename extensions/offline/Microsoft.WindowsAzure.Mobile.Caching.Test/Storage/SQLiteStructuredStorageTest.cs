@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json.Linq;
 
-namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.Storage
+namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 {
     [TestClass]
     public class SQLiteStructuredStorageTest
