@@ -13,8 +13,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             Contract.Requires<ArgumentNullException>(requestUri != null, "requestUri");
 
+            string tables = "tables/";
             string path = requestUri.AbsolutePath.Trim('/');
-            int lastSlash = path.LastIndexOf('/');
+            int startIndex = path.IndexOf(tables) + tables.Length;
+            int lastSlash = path.IndexOf('/', startIndex);
+            if(lastSlash == -1)
+            {
+                return null;
+            }
             return path.Substring(lastSlash + 1);
         }
 
