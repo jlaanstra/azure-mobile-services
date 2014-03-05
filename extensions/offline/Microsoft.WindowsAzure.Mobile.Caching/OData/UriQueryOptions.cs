@@ -103,20 +103,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// </summary>
         public IQueryOption InlineCount { get; private set; }
 
-        /// <summary>
-        /// Check if the given query option is an OData system query option.
-        /// </summary>
-        /// <param name="queryOptionName">The name of the query option.</param>
-        /// <returns>Returns <c>true</c> if the query option is an OData system query option.</returns>
-        public static bool IsSystemQueryOption(string queryOptionName)
-        {
-            return queryOptionName == "$orderby" ||
-                 queryOptionName == "$filter" ||
-                 queryOptionName == "$top" ||
-                 queryOptionName == "$skip" ||
-                 queryOptionName == "$inlinecount";
-        }
-
         private static void ThrowIfEmpty(string queryValue, string queryName)
         {
             if (String.IsNullOrWhiteSpace(queryValue))

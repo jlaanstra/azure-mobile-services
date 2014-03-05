@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
@@ -18,7 +19,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
     {
         private readonly IStructuredStorage storage;
         private readonly IConflictResolver conflictResolver;
-        private readonly AsyncLazy<bool> timestampsLoaded;
         private bool hasLocalChanges = true;
 
         /// <summary>
@@ -220,24 +220,15 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             return result;
         }
-
-        public async Task<JObject> UploadInsert(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
+        private async Task<JObject> ProcessRequest(HttpRequestMessage req, Uri tableUri, IHttp http)
         {
-            //remove systemproperties
-            JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
-
-            string paramString = TimestampSynchronizer.GetQueryString(parameters);
-
-            Uri insertUri = new Uri(string.Format("{0}{1}",
-                tableUri.OriginalString,
-                paramString != null ? "?" + paramString : string.Empty));
-
-            HttpRequestMessage req = http.CreateRequest(HttpMethod.Post, insertUri);
-            req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
-
             JObject response = await http.GetJsonAsync(req);
             JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
             JArray deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
+            foreach (JObject jObj in results.OfType<JObject>())
+            {
+                jObj["status"] = (int)ItemStatus.Unchanged;
+            }
 
             string tableName = UriHelper.GetTableNameFromUri(tableUri);
 
@@ -247,10 +238,32 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 await this.storage.RemoveStoredData(tableName, deleted);
             }
 
+            foreach (JObject jObj in results.OfType<JObject>())
+            {
+                jObj.Remove("status");
+            }
+
             return response;
         }
 
-        public async Task<JObject> UploadUpdate(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
+        public Task<JObject> UploadInsert(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
+        {
+            //remove systemproperties
+            JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
+
+            string paramString = TimestampSynchronizer.GetQueryString(parameters);
+
+            Uri insertUri = new Uri(string.Format("{0}{1}",
+                tableUri.OriginalString.TrimEnd('/'),
+                paramString != null ? "?" + paramString : string.Empty));
+
+            HttpRequestMessage req = http.CreateRequest(HttpMethod.Post, insertUri);
+            req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
+
+            return ProcessRequest(req, tableUri, http);
+        }
+
+        public Task<JObject> UploadUpdate(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
         {
             string version = null;
             JToken versionToken = item["__version"];
@@ -269,52 +282,28 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             string paramString = TimestampSynchronizer.GetQueryString(parameters);
 
             Uri updateUri = new Uri(string.Format("{0}/{1}{2}",
-                tableUri.OriginalString,
+                tableUri.OriginalString.TrimEnd('/'),
                 Uri.EscapeDataString(item["id"].ToString()),
                 paramString != null ? "?" + paramString : string.Empty));
 
             HttpRequestMessage req = http.CreateRequest(new HttpMethod("PATCH"), updateUri, new Dictionary<string, string>() { { "If-Match", string.Format("\"{0}\"", version) } });
             req.Content = new StringContent(insertItem.ToString(Formatting.None), Encoding.UTF8, "application/json");
 
-            JObject response = await http.GetJsonAsync(req);
-            JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
-            JArray deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
-
-            string tableName = UriHelper.GetTableNameFromUri(tableUri);
-
-            using (await this.storage.Open())
-            {
-                await this.storage.StoreData(tableName, results);
-                await this.storage.RemoveStoredData(tableName, deleted);
-            }
-
-            return response;            
+            return ProcessRequest(req, tableUri, http);            
         }
 
-        public async Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
+        public Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
         {
             string paramString = TimestampSynchronizer.GetQueryString(parameters);
             Uri deleteUri = new Uri(string.Format("{0}/{1}?version={2}{3}", 
-                tableUri.OriginalString, 
+                tableUri.OriginalString.TrimEnd('/'), 
                 Uri.EscapeDataString(item["id"].ToString()), 
                 Uri.EscapeDataString(item["__version"].ToString()),
                 paramString != null ? "&" + paramString : string.Empty));
 
             HttpRequestMessage req = http.CreateRequest(HttpMethod.Delete, deleteUri);
 
-            JObject response = await http.GetJsonAsync(req);
-            JArray results = ResponseHelper.GetResultsJArrayFromJson(response);
-            JArray deleted = ResponseHelper.GetDeletedJArrayFromJson(response);
-
-            string tableName = UriHelper.GetTableNameFromUri(tableUri);
-
-            using (await this.storage.Open())
-            {
-                await this.storage.StoreData(tableName, results);
-                await this.storage.RemoveStoredData(tableName, deleted);
-            }
-
-            return response;            
+            return ProcessRequest(req, tableUri, http);
         }
 
         public void NotifyOfUnsynchronizedChange()

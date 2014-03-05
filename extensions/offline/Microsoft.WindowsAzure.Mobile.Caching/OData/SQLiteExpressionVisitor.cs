@@ -43,6 +43,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 this.sqlBuilder.Append(" OFFSET ");
                 this.Visit(query.Skip.Expression);
             }
+            if (query.InlineCount != null && !string.IsNullOrEmpty(query.InlineCount.RawValue))
+            {
+                this.Visit(query.InlineCount.Expression);
+            }
 
             return query;
         }
@@ -162,6 +166,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 this.sqlBuilder.Append(expr.Value);
             }
+            else if(type == typeof(DateTime) || type == typeof(DateTimeOffset))
+            {
+                this.sqlBuilder.AppendFormat("datetime('{0:yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fffK}')", expr.Value);
+            }
+            else if(type == typeof(TimeSpan))
+            {
+                this.sqlBuilder.AppendFormat("time('{0}')", expr.Value);
+            }
             else
             {
                 this.sqlBuilder.AppendFormat("'{0}'", expr.Value.ToString().Replace("'", "''"));
@@ -182,6 +194,12 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     this.sqlBuilder.Append(")");
                     break;
                 case "endswith":
+                    this.sqlBuilder.Append("(");
+                    this.Visit(expr.Arguments[0]);
+                    this.sqlBuilder.Append(" LIKE ");
+                    this.Visit(expr.Arguments[1]);
+                    this.sqlBuilder.Append(")");
+                    break;
                 case "startswith":
                     this.sqlBuilder.Append("(");
                     this.Visit(expr.Arguments[0]);
@@ -296,11 +314,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             this.sqlBuilder.Append(expr.Member);
             return expr;
-        }
-
-        public override ODataExpression VisitParameter(ODataParameterExpression expr)
-        {
-            throw new NotSupportedException();
         }
     }
 }
