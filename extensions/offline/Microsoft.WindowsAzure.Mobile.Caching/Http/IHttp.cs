@@ -15,11 +15,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         HttpResponseMessage OriginalResponse { get; set; }
 
-        Task<HttpResponseMessage> SendOriginalAsync();
-
         Task<HttpResponseMessage> SendAsync(HttpRequestMessage request);
-
-        HttpRequestMessage CreateRequest(HttpMethod method, Uri uri, IDictionary<string, string> headers = null);
     }
 
     public static class IHttpExtensions
@@ -42,6 +38,40 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             response.Dispose();
 
             return result;
+        }
+
+        public static Task<HttpResponseMessage> SendOriginalAsync(this IHttp This)
+        {
+            return This.SendAsync(This.OriginalRequest).ContinueWith(t =>
+            {
+                This.OriginalResponse = t.Result;
+                return t.Result;
+            }, TaskContinuationOptions.OnlyOnRanToCompletion);
+        }
+        
+        public static HttpRequestMessage CreateRequest(this IHttp This, HttpMethod method, Uri uri, IDictionary<string, string> headers = null)
+        {
+            HttpRequestMessage req = new HttpRequestMessage(method, uri);
+            if (This.OriginalRequest != null)
+            {
+                foreach (var header in This.OriginalRequest.Headers)
+                {
+                    if (header.Key.StartsWith("X-ZUMO"))
+                    {
+                        req.Headers.Add(header.Key, header.Value);
+                    }
+                }
+
+                req.Version = This.OriginalRequest.Version;
+            }
+            if (headers != null)
+            {
+                foreach (var header in headers)
+                {
+                    req.Headers.Add(header.Key, header.Value);
+                }
+            }
+            return req;
         }
     }
 }

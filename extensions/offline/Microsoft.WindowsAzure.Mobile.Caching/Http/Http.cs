@@ -23,40 +23,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public HttpRequestMessage OriginalRequest { get; set; }
 
-        public HttpResponseMessage OriginalResponse { get; set; }
-
-        public Task<HttpResponseMessage> SendOriginalAsync()
-        {
-            return SendAsync(this.OriginalRequest).ContinueWith(t =>
-            {
-                this.OriginalResponse = t.Result;
-                return t.Result;
-            }, TaskContinuationOptions.OnlyOnRanToCompletion);
-        }
-
-        public HttpRequestMessage CreateRequest(HttpMethod method, Uri uri, IDictionary<string, string> headers = null)
-        {
-            HttpRequestMessage req = new HttpRequestMessage(method, uri);
-            if (this.OriginalRequest != null)
-            {
-                foreach (var header in this.OriginalRequest.Headers)
-                {
-                    if (header.Key.StartsWith("X-ZUMO"))
-                    {
-                        req.Headers.Add(header.Key, header.Value);
-                    }
-                }
-
-                req.Version = this.OriginalRequest.Version;
-            }
-            if (headers != null)
-            {
-                foreach (var header in headers)
-                {
-                    req.Headers.Add(header.Key, header.Value);
-                }
-            }
-            return req;
-        }
+        public HttpResponseMessage OriginalResponse { get; set; }        
     }
 }
