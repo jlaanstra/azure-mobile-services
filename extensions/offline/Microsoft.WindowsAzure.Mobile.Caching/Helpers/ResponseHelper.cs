@@ -29,11 +29,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 // result should be an array of a items
                 // insert them as an unchanged items
-                dataForInsertion = (JArray)results;
-                foreach (JObject item in dataForInsertion.OfType<JObject>())
-                {
-                    item["status"] = (int)ItemStatus.Unchanged;
-                }
+                dataForInsertion = (JArray)results;                
             }
             else
             {
@@ -69,44 +65,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 throw new InvalidOperationException("Invalid sync response.");
             }
-        }
-
-        public static async Task<HttpContent> TransformSyncReadResponse(HttpContent syncContent)
-        {
-            string rawContent = await syncContent.ReadAsStringAsync();
-            JObject jobject = JObject.Parse(rawContent);
-            EnsureValidSyncResponse(jobject);
-            jobject.Remove("deleted");
-            jobject.Remove("__version");
-
-            return new StringContent(jobject.ToString());
-        }
-
-        public static async Task<HttpContent> TransformSyncInsertResponse(HttpContent syncContent)
-        {
-            string rawContent = await syncContent.ReadAsStringAsync();
-            JObject jobject = JObject.Parse(rawContent);
-            EnsureValidSyncResponse(jobject);
-            jobject.Remove("deleted");
-            jobject.Remove("__version");
-
-            return new StringContent(((JArray)jobject["results"]).First.ToString());
-        }
-
-        public static async Task<HttpContent> TransformSyncUpdateResponse(HttpContent syncContent)
-        {
-            string rawContent = await syncContent.ReadAsStringAsync();
-            JObject jobject = JObject.Parse(rawContent);
-            EnsureValidSyncResponse(jobject);
-            jobject.Remove("deleted");
-            jobject.Remove("__version");
-
-            return new StringContent(((JArray)jobject["results"]).First.ToString());
-        }
-
-        public static Task<HttpContent> TransformSyncDeleteResponse(HttpContent syncContent)
-        {
-            return Task.FromResult<HttpContent>(new StringContent(string.Empty));
         }
 
         public static JObject CreateSyncResponseWithItems(JToken result, JToken deleted)

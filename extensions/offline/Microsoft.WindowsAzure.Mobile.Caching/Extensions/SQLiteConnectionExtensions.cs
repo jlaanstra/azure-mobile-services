@@ -324,12 +324,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
                 if (value != null && value.Value != null)
                 {
-                    ////make sure string ids are inserted lowercase
-                    //if (c.Name.Equals("id") && c.GetClrDataType() == typeof(string))
-                    //{
-                    //    value = new JValue(value.Value.ToString().ToLowerInvariant());
-                    //}
-
                     Action<ISQLiteStatement, int, JValue> bind;
                     if (!bindToValue.TryGetValue(c.GetClrDataType(), out bind))
                     {
