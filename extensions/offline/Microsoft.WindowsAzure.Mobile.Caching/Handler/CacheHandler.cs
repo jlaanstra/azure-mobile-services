@@ -11,7 +11,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public class CacheHandler : DelegatingHandler
     {
-        private readonly ICacheProvider[] cache;
+        private readonly ICacheProvider[] caches;
 
         private static readonly AsyncLock @lock = new AsyncLock();
 
@@ -19,9 +19,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         /// 
         /// </summary>
         /// <param name="cache"></param>
-        public CacheHandler(params ICacheProvider[] cache)
+        public CacheHandler(params ICacheProvider[] caches)
         {
-            this.cache = cache;
+            this.caches = caches;
         }
 
         /// <summary>
@@ -33,7 +33,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             // coose the first cacheprovider to handle the request
-            ICacheProvider provider = cache.FirstOrDefault(c => c.ProvidesCacheForRequest(request.RequestUri));
+            ICacheProvider provider = caches.FirstOrDefault(c => c.ProvidesCacheForRequest(request.RequestUri));
 
             //are we caching request for this URI?
             if (provider == null)
@@ -69,7 +69,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                             newContent = await provider.Delete(request.RequestUri, http);
                             break;
                         default:
-                            newContent = request.Content;
+                            throw new NotImplementedException();
                             break;
                     }
 

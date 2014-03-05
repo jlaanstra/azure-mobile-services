@@ -7,7 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Microsoft.WindowsAzure.MobileServices.Caching.CacheProviders;
 using System.Diagnostics.Contracts;
 using System.Collections;
 using System.Diagnostics;
@@ -269,20 +268,20 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
             // get parameters
             IDictionary<string, string> parameters = UriHelper.GetQueryParameters(requestUri);
+            JObject item = null;
+            using (await this.storage.Open())
+            {
+                item = await this.storage.GetItemWithId(tableName, id);
+            }
 
             if (await network.IsConnectedToInternet())
             {
-                Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
-                JObject arr = null;
-                using (await this.storage.Open())
+                if (item != null)
                 {
-                    arr = await this.storage.GetItemWithId(tableName, id);
-                }
-                if (arr != null)
-                {
-                    arr["status"] = (int)ItemStatus.Deleted;
+                    Uri tableUri = UriHelper.GetCleanTableUri(requestUri);
+                    item["status"] = (int)ItemStatus.Deleted;
                     //make sure we synchronize
-                    JObject res = await this.synchronizer.UploadChanges(tableUri, http, arr, parameters);
+                    JObject res = await this.synchronizer.UploadChanges(tableUri, http, item, parameters);
                 }
             }
             else
@@ -293,8 +292,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 // we can just remove it locally and the server will never know about its existence
                 using (await this.storage.Open())
                 {
-                    JObject arr = await this.storage.GetItemWithId(tableName, id);
-                    if (arr != null && arr.Value<int>("status") != (int)ItemStatus.Inserted)
+                    if (item != null && item.Value<int>("status") != (int)ItemStatus.Inserted)
                     {
                         //update status of current item 
                         JArray deleted = new JArray();

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Microsoft.WindowsAzure.MobileServices.Caching.CacheProviders
+namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     /// <summary>
     /// Cache provider that doesn't do caching at all :)
