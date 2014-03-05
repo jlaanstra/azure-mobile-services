@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
-    public class LatestWriteWinsResolver : IConflictResolver
+    public class LastWriteWinsResolver : IConflictResolver
     {
         public Task<ConflictResult> Resolve(Conflict conflict)
         {
