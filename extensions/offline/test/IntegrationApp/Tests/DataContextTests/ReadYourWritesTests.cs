@@ -170,5 +170,74 @@ namespace IntegrationApp.Tests.ConsistencyTests
 
             this.NetworkInformation.IsOnline = true;
         }
+
+        [AsyncTestMethod]
+        public async Task ReadShouldReadDeletes()
+        {
+            this.NetworkInformation.IsOnline = false;
+
+            IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
+            IEnumerable<Product> results = await table.ReadAsync();
+
+            Assert.AreEqual(10, results.Count());
+
+            Guid guid = Guid.NewGuid();
+            Product product = new Product()
+            {
+                AvailableTime = TimeSpan.FromHours(2),
+                Id = guid.ToString(),
+                DisplayAisle = (short)(2 + 10),
+                InStock = true,
+                Name = "AwesomeProduct" + 2,
+                OptionFlags = (byte)5,
+                OtherId = 34,
+                Price = 30.09M,
+                Type = ProductType.Furniture,
+                Weight = 35.7f,
+            };
+
+            await table.DeleteAsync(product);
+
+            results = await table.ReadAsync();
+
+            Assert.AreEqual(10, results.Count());
+
+            this.NetworkInformation.IsOnline = true;
+
+        }
+
+        [AsyncTestMethod]
+        public async Task QueryShouldReadDeletes()
+        {
+            this.NetworkInformation.IsOnline = false;
+
+            IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
+            IEnumerable<Product> results = await table.Where(p => p.Type == ProductType.Furniture).ToEnumerableAsync();
+
+            Assert.AreEqual(5, results.Count());
+
+            Guid guid = Guid.NewGuid();
+            Product product = new Product()
+            {
+                AvailableTime = TimeSpan.FromHours(2),
+                Id = guid.ToString(),
+                DisplayAisle = (short)(2 + 10),
+                InStock = true,
+                Name = "AwesomeProduct" + 2,
+                OptionFlags = (byte)5,
+                OtherId = 34,
+                Price = 30.09M,
+                Type = ProductType.Furniture,
+                Weight = 35.7f,
+            };
+
+            await table.DeleteAsync(product);
+
+            results = await table.Where(p => p.Type == ProductType.Furniture).ToEnumerableAsync();
+
+            Assert.AreEqual(5, results.Count());
+
+            this.NetworkInformation.IsOnline = true;
+        }
     }
 }

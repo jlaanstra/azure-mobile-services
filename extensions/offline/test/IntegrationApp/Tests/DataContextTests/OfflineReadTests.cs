@@ -41,7 +41,7 @@ namespace IntegrationApp.Tests.DataContextTests
                     Name = "Product" + i,
                     OptionFlags = (byte)i,
                     OtherId = i,
-                    Price = 30.09M,
+                    Price = i % 2 == 0 ? 30.09M : 9.09M,
                     Type = i % 2 == 0 ? ProductType.Food : ProductType.Furniture,
                     Weight = i % 2 == 0 ? 35.7f : (float?)null,
                 });
@@ -62,6 +62,43 @@ namespace IntegrationApp.Tests.DataContextTests
 
             results = await table.Where(p => p.OtherId < 7).ToEnumerableAsync();
             Assert.AreEqual(3, results.Count());
+
+            this.NetworkInformation.IsOnline = true;
+        }
+
+        [Tag("test")]
+        [AsyncTestMethod]
+        public async Task OfflineQueryUsesCachedData2()
+        {
+            await this.CacheProvider.Purge();
+
+            IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
+            IEnumerable<Product> results = await table.ToEnumerableAsync();
+
+            Assert.AreEqual(10, results.Count());
+
+            this.NetworkInformation.IsOnline = false;
+
+            results = await table.Where(p => p.OtherId < 9 && p.Price < p.Price * 2 - 10 && p.Name.EndsWith("6")).ToEnumerableAsync();
+            Assert.AreEqual(1, results.Count());
+
+            this.NetworkInformation.IsOnline = true;
+        }
+
+        [AsyncTestMethod]
+        public async Task OfflineQueryUsesCachedData3()
+        {
+            await this.CacheProvider.Purge();
+
+            IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
+            IEnumerable<Product> results = await table.Where(p => p.InStock).ToEnumerableAsync();
+
+            Assert.AreEqual(10, results.Count());
+
+            this.NetworkInformation.IsOnline = false;
+
+            results = await table.Where(p => p.Weight == null).ToEnumerableAsync();
+            Assert.AreEqual(0, results.Count());
 
             this.NetworkInformation.IsOnline = true;
         }
