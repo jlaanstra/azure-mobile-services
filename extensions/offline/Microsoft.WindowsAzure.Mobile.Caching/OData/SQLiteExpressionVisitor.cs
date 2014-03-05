@@ -190,13 +190,16 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     this.sqlBuilder.Append("(");
                     this.Visit(expr.Arguments[1]);
                     this.sqlBuilder.Append(" LIKE ");
+                    this.sqlBuilder.Append("'%' || ");
                     this.Visit(expr.Arguments[0]);
+                    this.sqlBuilder.Append(" || '%'");
                     this.sqlBuilder.Append(")");
                     break;
                 case "endswith":
                     this.sqlBuilder.Append("(");
                     this.Visit(expr.Arguments[0]);
                     this.sqlBuilder.Append(" LIKE ");
+                    this.sqlBuilder.Append("'%' || ");
                     this.Visit(expr.Arguments[1]);
                     this.sqlBuilder.Append(")");
                     break;
@@ -205,6 +208,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     this.Visit(expr.Arguments[0]);
                     this.sqlBuilder.Append(" LIKE ");
                     this.Visit(expr.Arguments[1]);
+                    this.sqlBuilder.Append(" || '%'");
                     this.sqlBuilder.Append(")");
                     break;
                 case "length":
