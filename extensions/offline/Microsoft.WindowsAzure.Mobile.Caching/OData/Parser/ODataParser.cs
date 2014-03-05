@@ -54,13 +54,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         public static ODataExpression ParseInlineCount(string inlineCount)
         {
             InlineCount enumValue;
-            if (Enum.TryParse(inlineCount, out enumValue))
+            if (Enum.TryParse(inlineCount, true, out enumValue))
             {
                 return new ODataInlineCountExpression(enumValue);
             }
             else
             {
-                throw new InvalidOperationException("Top can only take an integer");
+                throw new InvalidOperationException("InlineCount did not match enum value.");
             }
         }
 

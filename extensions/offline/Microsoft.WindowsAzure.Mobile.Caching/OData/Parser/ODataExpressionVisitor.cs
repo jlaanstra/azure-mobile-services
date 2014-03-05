@@ -8,16 +8,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public abstract class ODataExpressionVisitor
     {
-        public virtual IQueryOptions VisitQueryOptions(IQueryOptions query)
-        {
-            this.Visit(query.Filter.Expression);
-            this.Visit(query.OrderBy.Expression);
-            this.Visit(query.Skip.Expression);
-            this.Visit(query.Top.Expression);
-            this.Visit(query.InlineCount.Expression);
-
-            return query;
-        }
+        public abstract IQueryOptions VisitQueryOptions(IQueryOptions query);
 
         public virtual ODataExpression Visit(ODataExpression expr)
         {
@@ -52,22 +43,17 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 return new ODataUnaryExpression(operand, expr.ExpressionType);
             }
-            return this.Visit(expr);
+            return expr;
         }
 
         public virtual ODataExpression VisitConstant(ODataConstantExpression expr)
         {
-            return this.Visit(expr);
+            return expr;
         }
 
         public virtual ODataExpression VisitMember(ODataMemberExpression expr)
         {
-            return this.Visit(expr);
-        }
-
-        public virtual ODataExpression VisitParameter(ODataParameterExpression expr)
-        {
-            return this.Visit(expr);
+            return expr;
         }
 
         public virtual ODataExpression VisitFunctionCall(ODataFunctionCallExpression expr)
@@ -98,22 +84,26 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public virtual ODataExpression VisitOrderBy(ODataOrderByExpression expr)
         {
-            return this.Visit(expr);
+            foreach (ODataOrderByExpression.Selector s in expr.Selectors)
+            {
+                this.Visit(s.Expression);
+            }
+            return expr;
         }
 
         public virtual ODataExpression VisitTop(ODataTopExpression expr)
         {
-            return this.Visit(expr);
+            return expr;
         }
 
         public virtual ODataExpression VisitSkip(ODataSkipExpression expr)
         {
-            return this.Visit(expr);
+            return expr;
         }
 
         public virtual ODataExpression VisitInlineCount(ODataInlineCountExpression expr)
         {
-            return this.Visit(expr);
+            return expr;
         }
     }
 }

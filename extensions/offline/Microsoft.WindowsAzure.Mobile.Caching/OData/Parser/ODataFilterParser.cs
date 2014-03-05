@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
@@ -21,11 +22,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 	        '\t',
 	        '\n',
 	        '\r'
-        };
-
-        private List<string> parameters = new List<string>
-        {
-	        "$it"
         };
 
         private string text;
@@ -104,7 +100,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Question,
             Dot,
             Star,
-
             Not,
             Modulo,
             Multiply,
@@ -151,22 +146,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 }
             }
             return left;
-        }
-
-        private ODataExpression ParseAll(ODataExpression parent)
-        {
-            return this.ParseAnyAll(parent, false);
-        }
-
-        private ODataExpression ParseAny(ODataExpression parent)
-        {
-            return this.ParseAnyAll(parent, true);
-        }
-
-        private ODataExpression ParseAnyAll(ODataExpression parent, bool isAny)
-        {
-            //any and all not supported
-            throw new NotSupportedException();
         }
 
         private ODataExpression[] ParseArgumentList(TokenId splitToken)
@@ -217,6 +196,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 string hexValue = binaryString.Substring(i, 2);
                 bytes[j] = byte.Parse(hexValue, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
             }
+            this.NextToken();
             return new ODataConstantExpression(bytes);
         }
 
@@ -365,39 +345,15 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             ODataExpression expression;
             if (expressionToken.Id == TokenId.Dot)
             {
-                expression = this.ParseTypeSegment(null);
+                throw new NotSupportedException("Segments unsupported");
             }
             else  if (expressionToken.Id == TokenId.Slash)
             {
-                expression = this.ParseSegment(null);
+                throw new NotSupportedException("Segments not supported.");
             }
             else
             {
                 expression = this.ParsePrimaryStart();
-            }
-            while (this.token.Id == TokenId.Slash)
-            {
-                this.NextToken();
-                if (this.token.Id == TokenId.Any)
-                {
-                    expression = this.ParseAny(expression);
-                }
-                else if (this.token.Id == TokenId.All)
-                {
-                    expression = this.ParseAll(expression);
-                }
-                else if (this.PeekNextToken().Id == TokenId.Slash)
-                {
-                    expression = this.ParseSegment(expression);
-                }
-                else if (this.PeekNextToken().Id == TokenId.Dot)
-                {
-                    expression = this.ParseTypeSegment(expression);
-                }
-                else
-                {
-                    expression = this.ParseMemberAccess(expression);
-                }
             }
             return expression;
         }
@@ -410,8 +366,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     return this.ParseIdentifier();
                 case TokenId.OpenParen:
                     return this.ParseParenthesisExpression();
-                case TokenId.Star:
-                    return this.ParseStarMemberAccess(null);
                 case TokenId.NullLiteral:
                     return this.ParseNullLiteral();
                 case TokenId.BooleanLiteral:
@@ -425,9 +379,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 case TokenId.SingleLiteral:
                     return this.ParseSingleLiteral();
                 case TokenId.DateTimeLiteral:
-                    return this.ParseDateTimeLiteral();
                 case TokenId.DateTimeOffsetLiteral:
-                    return this.ParseDateTimeOffsetLiteral();
+                    //Mobile Servcies only send DateTimes
+                    return this.ParseDateTimeLiteral();
                 case TokenId.TimeLiteral:
                     return this.ParseTimeLiteral();
                 case TokenId.DecimalLiteral:
@@ -438,6 +392,8 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     return this.ParseGuidLiteral();
                 case TokenId.BinaryLiteral:
                     return this.ParseBinaryLiteral();
+                case TokenId.Star:
+                    throw new NotSupportedException("star unsupported");
                 case TokenId.GeographyLiteral:
                 case TokenId.GeometryLiteral:
                     throw new NotSupportedException("Spatial types unsupported");
@@ -448,17 +404,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 default:
                     throw ParseError(R.GetString("ExpressionExpected"));
             }
-        }
-
-        private ODataExpression ParseSegment(ODataExpression parent)
-        {
-            string identifier = this.GetIdentifier();
-            this.NextToken();
-            if (this.parameters.Contains(identifier) && parent == null)
-            {
-                return new ODataParameterExpression(identifier);
-            }
-            throw new NotSupportedException("Segment not supported");
         }
 
         private ODataExpression ParseNullLiteral()
@@ -489,11 +434,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             this.ValidateToken(TokenId.IntegerLiteral);
 
             string text = this.token.Text;
-            int value;
-            if (!int.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out value))
-            {
-                throw ParseError(string.Format(CultureInfo.CurrentCulture, R.GetString("InvalidIntegerLiteral"), text));
-            }
+            int value = XmlConvert.ToInt32(text);
             this.NextToken();
             return new ODataConstantExpression(value);
         }
@@ -505,11 +446,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             string text = this.token.Text;
             if (TryRemoveLiteralSuffix("L", ref text) || TryRemoveLiteralSuffix("l", ref text))
             {
-                long value;
-                if (!long.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out value))
-                {
-                    throw ParseError(string.Format(CultureInfo.CurrentCulture, R.GetString("InvalidIntegerLiteral"), text));
-                }
+                long value = XmlConvert.ToInt64(text);
                 this.NextToken();
                 return new ODataConstantExpression(value);
             }
@@ -526,11 +463,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             string text = this.token.Text;
             if (TryRemoveLiteralSuffix("F", ref text) || TryRemoveLiteralSuffix("f", ref text))
             {
-                float value;
-                if (!float.TryParse(text, NumberStyles.Number | NumberStyles.AllowExponent, CultureInfo.InvariantCulture, out value))
-                {
-                    throw ParseError(string.Format(CultureInfo.CurrentCulture, R.GetString("InvalidRealLiteral"), text));
-                }
+                float value = XmlConvert.ToSingle(text);
                 this.NextToken();
                 return new ODataConstantExpression(value);
             }
@@ -540,11 +473,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
         }
 
-        private ODataExpression ParseStarMemberAccess(ODataExpression instance)
-        {
-            throw new NotSupportedException("star unsupported");
-        }
-
         private ODataExpression ParseDoubleLiteral()
         {
             this.ValidateToken(TokenId.DoubleLiteral);
@@ -552,21 +480,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             string text = this.token.Text;
             if (TryRemoveLiteralSuffix("D", ref text) || TryRemoveLiteralSuffix("d", ref text))
             {
-                double value;
-                if (!double.TryParse(text, NumberStyles.Number | NumberStyles.AllowExponent, CultureInfo.InvariantCulture, out value))
-                {
-                    throw ParseError(string.Format(CultureInfo.CurrentCulture, R.GetString("InvalidRealLiteral"), text));
-                }
+                double value = XmlConvert.ToDouble(text);
                 this.NextToken();
                 return new ODataConstantExpression(value);
             }
             else
             {
-                double value;
-                if (!double.TryParse(text, NumberStyles.Number | NumberStyles.AllowExponent, CultureInfo.InvariantCulture, out value))
-                {
-                    throw ParseError(string.Format(CultureInfo.CurrentCulture, R.GetString("InvalidRealLiteral"), text));
-                }
+                double value = XmlConvert.ToDouble(text);
                 this.NextToken();
                 return new ODataConstantExpression(value);
             }
@@ -580,9 +500,21 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             if (TryRemoveLiteralSuffix("M", ref text) || TryRemoveLiteralSuffix("m", ref text))
             {
                 decimal value;
-                if (!decimal.TryParse(text, NumberStyles.Number | NumberStyles.AllowExponent, CultureInfo.InvariantCulture, out value))
+                try
                 {
-                    throw ParseError(string.Format(CultureInfo.CurrentCulture, R.GetString("InvalidRealLiteral"), text));
+                    value = XmlConvert.ToDecimal(text);
+                }
+                catch (FormatException ex)
+                {
+                    Decimal result;
+                    if (Decimal.TryParse(text, NumberStyles.Float, (IFormatProvider)NumberFormatInfo.InvariantInfo, out result))
+                    {
+                        value = result;
+                    }
+                    else
+                    {
+                        value = new Decimal(0);
+                    }
                 }
                 this.NextToken();
                 return new ODataConstantExpression(value);
@@ -605,25 +537,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 throw ParseError("error");
             }
-            DateTime dateTime = DateTime.Parse(datetimeString, CultureInfo.InvariantCulture);
-            return new ODataConstantExpression(dateTime);
-        }
-
-        private ODataExpression ParseDateTimeOffsetLiteral()
-        {
-            this.ValidateToken(TokenId.DateTimeOffsetLiteral);
-            string datetimeoffsetString = this.token.Text;
-            if (!TryRemoveLiteralPrefix("datetimeoffset", ref datetimeoffsetString))
-            {
-                throw ParseError("error");
-            }
-            if (!TryRemoveQuotes(ref datetimeoffsetString))
-            {
-                throw ParseError("error");
-            }
-            DateTimeOffset dateTimeOffset = DateTimeOffset.Parse(datetimeoffsetString, CultureInfo.InvariantCulture);
+            DateTime dateTime = DateTime.Parse(datetimeString, null, DateTimeStyles.AdjustToUniversal);
             this.NextToken();
-            return new ODataConstantExpression(dateTimeOffset);
+            return new ODataConstantExpression(dateTime);
         }
 
         private ODataExpression ParseTimeLiteral()
@@ -641,11 +557,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             TimeSpan timespan = TimeSpan.Parse(timeString, CultureInfo.InvariantCulture);
             this.NextToken();
             return new ODataConstantExpression(timespan);
-        }
-
-        private ODataExpression ParseTypeSegment(ODataExpression parent)
-        {
-            throw new NotSupportedException("Segments unsupported");
         }
 
         private ODataExpression ParseGuidLiteral()
@@ -693,19 +604,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             return new ODataFunctionCallExpression(currentToken.Text, arguments);
         }                
 
-        //TODO
         private ODataExpression ParseMemberAccess(ODataExpression instance)
         {
             if (this.token.Text == "*")
             {
-                return this.ParseStarMemberAccess(instance);
+                throw new NotSupportedException("star unsupported");
             }
             string identifier = this.GetIdentifier();
-            if (instance == null && this.parameters.Contains(identifier))
-            {
-                this.NextToken();
-                return new ODataParameterExpression(identifier);
-            }
             this.NextToken();
             return new ODataMemberExpression(instance, identifier);
         }
@@ -792,11 +697,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 case ')':
                     this.NextChar();
                     t = TokenId.CloseParen;
-                    break;
-                case '*':
-                    this.NextChar();
-                    t = TokenId.Star;
-                    break;
+                    break;                
                 case ',':
                     this.NextChar();
                     t = TokenId.Comma;
@@ -833,26 +734,30 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     this.NextChar();
                     t = TokenId.Minus;
                     break;
-                case '.':
-                    this.NextChar();
-                    t = TokenId.Dot;
-                    break;
                 case '/':
                     this.NextChar();
                     t = TokenId.Dot;
-                    break;
-                case ':':
-                    this.NextChar();
-                    t = TokenId.Colon;
                     break;
                 case '=':
                     this.NextChar();
                     t = TokenId.Equal;
                     break;
-                case '?':
-                    this.NextChar();
-                    t = TokenId.Question;
-                    break;
+                //case '.':
+                //    this.NextChar();
+                //    t = TokenId.Dot;
+                //    break;
+                //case '*':
+                //    this.NextChar();
+                //    t = TokenId.Star;
+                //    break;
+                //case ':':
+                //    this.NextChar();
+                //    t = TokenId.Colon;
+                //    break;
+                //case '?':
+                //    this.NextChar();
+                //    t = TokenId.Question;
+                //    break;
                 default:
                     if (char.IsLetter(this.ch) || this.ch == '_' || this.ch == '$')
                     {
@@ -909,12 +814,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                         case "X":
                             tokenId = TokenId.BinaryLiteral;
                             break;
-                        case "geography":
-                            tokenId = TokenId.GeographyLiteral;
-                            break;
-                        case "geometry":
-                            tokenId = TokenId.GeometryLiteral;
-                            break;
                     }
 
                     int position = this.token.Position;
@@ -946,7 +845,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                             this.token.Id = TokenId.SingleLiteral;
                             break;
                         case "true":
+                        case "True":
                         case "false":
+                        case "False":
                             this.token.Id = TokenId.BooleanLiteral;
                             break;
                         case "null":
@@ -1009,73 +910,60 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             char startChar = this.ch;
             this.NextChar();
-            TokenId result;
-            if (startChar == '0' && this.ch == 'x' || this.ch == 'X')
+            TokenId result  = TokenId.IntegerLiteral;
+            while (char.IsDigit(this.ch))
             {
-                result = TokenId.BinaryLiteral;
+                this.NextChar();
+            }
+            if (this.ch == '.')
+            {
+                result = TokenId.DoubleLiteral;
+                this.NextChar();
+                this.ValidateDigit();
+
                 do
                 {
                     this.NextChar();
                 }
-                while (IsCharHexDigit(this.ch));
+                while (char.IsDigit(this.ch));
             }
-            else
+            switch (this.ch)
             {
-                result = TokenId.IntegerLiteral;
-                while (char.IsDigit(this.ch))
-                {
-                    this.NextChar();
-                }
-                if (this.ch == '.')
-                {
+                case 'E':
+                case 'e':
                     result = TokenId.DoubleLiteral;
                     this.NextChar();
+                    if (this.ch == '+' || this.ch == '-')
+                    {
+                        this.NextChar();
+                    }
                     this.ValidateDigit();
-
                     do
                     {
                         this.NextChar();
                     }
                     while (char.IsDigit(this.ch));
-                }
-                switch (this.ch)
-                {
-                    case 'E':
-                    case 'e':
-                        result = TokenId.DoubleLiteral;
-                        this.NextChar();
-                        if (this.ch == '+' || this.ch == '-')
-                        {
-                            this.NextChar();
-                        }
-                        this.ValidateDigit();
-                        do
-                        {
-                            this.NextChar();
-                        }
-                        while (char.IsDigit(this.ch));
-                        break;
-                    case 'M':
-                    case 'm':
-                        result = TokenId.DecimalLiteral;
-                        this.NextChar();
-                        break;
-                    case 'd':
-                    case 'D':
-                        result = TokenId.DoubleLiteral;
-                        this.NextChar();
-                        break;
-                    case 'L':
-                    case 'l':
-                        result = TokenId.Int64Literal;
-                        this.NextChar();
-                        break;
-                    case 'f':
-                    case 'F':
-                        result = TokenId.SingleLiteral;
-                        this.NextChar();
-                        break;
-                }
+                    break;
+                case 'M':
+                case 'm':
+                    result = TokenId.DecimalLiteral;
+                    this.NextChar();
+                    break;
+                case 'd':
+                case 'D':
+                    result = TokenId.DoubleLiteral;
+                    this.NextChar();
+                    break;
+                case 'L':
+                case 'l':
+                    result = TokenId.Int64Literal;
+                    this.NextChar();
+                    break;
+                case 'f':
+                case 'F':
+                    result = TokenId.SingleLiteral;
+                    this.NextChar();
+                    break;
             }
             return result;
         }
@@ -1165,11 +1053,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
             text = text.Substring(1, text.Length - 2).Replace("''", "'");
             return true;
-        }
-
-        private static bool IsCharHexDigit(char c)
-        {
-            return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
         }
 
         private static bool IsNumeric(TokenId id)

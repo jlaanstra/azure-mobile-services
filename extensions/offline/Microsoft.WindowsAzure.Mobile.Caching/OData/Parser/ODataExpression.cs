@@ -118,21 +118,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         }
     }
 
-    public class ODataParameterExpression : ODataExpression
-    {
-        public ODataParameterExpression(string name)
-        {
-            this.Name = name;
-        }
-
-        public string Name { get; private set; }
-
-        public override ODataExpression Accept(ODataExpressionVisitor visitor)
-        {
-            return visitor.VisitParameter(this);
-        }
-    }
-
     public class ODataUnaryExpression : ODataExpression
     {
         public ODataUnaryExpression(ODataExpression expr, ExpressionType type)
@@ -172,11 +157,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             this.Value = value;
             this.ExpressionType = ExpressionType.Constant;
-        }
-
-        public ODataConstantExpression(object value, Type type)
-        {
-            this.Value = value;
         }
 
         public object Value { get; private set; }
@@ -253,18 +233,27 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 this.Order = order;
             }
         }
+        public override ODataExpression Accept(ODataExpressionVisitor visitor)
+        {
+            return visitor.VisitOrderBy(this);
+        }
     }
 
     public class ODataInlineCountExpression : ODataExpression
     {
         public ODataInlineCountExpression(InlineCount count)
         {
-            if (Enum.IsDefined(typeof(InlineCount), count))
+            if (!Enum.IsDefined(typeof(InlineCount), count))
             {
                 throw new ArgumentException(string.Format("Undefined enum value on enum {0}.", count));
             }
             this.Value = count;
             this.ExpressionType = ExpressionType.Constant;
+        }
+
+        public override ODataExpression Accept(ODataExpressionVisitor visitor)
+        {
+            return visitor.VisitInlineCount(this);
         }
 
         public InlineCount Value { get; private set; }
@@ -282,6 +271,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             this.ExpressionType = ExpressionType.Constant;
         }
 
+        public override ODataExpression Accept(ODataExpressionVisitor visitor)
+        {
+            return visitor.VisitSkip(this);
+        }
+
         public int Value { get; private set; }
     }
 
@@ -295,6 +289,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
             this.Value = top;
             this.ExpressionType = ExpressionType.Constant;
+        }
+        public override ODataExpression Accept(ODataExpressionVisitor visitor)
+        {
+            return visitor.VisitTop(this);
         }
 
         public int Value { get; private set; }
