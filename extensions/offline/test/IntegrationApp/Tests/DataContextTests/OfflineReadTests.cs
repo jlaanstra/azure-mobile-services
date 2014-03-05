@@ -93,7 +93,7 @@ namespace IntegrationApp.Tests.DataContextTests
             IMobileServiceTable<Product> table = this.OfflineClient.GetTable<Product>();
             IEnumerable<Product> results = await table.Where(p => p.InStock).ToEnumerableAsync();
 
-            Assert.AreEqual(10, results.Count());
+            Assert.AreEqual(5, results.Count());
 
             this.NetworkInformation.IsOnline = false;
 
