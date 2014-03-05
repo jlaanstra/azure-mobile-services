@@ -21,6 +21,9 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         {
             this.provider = new Mock<ICacheProvider>();
             this.provider.Setup(ic => ic.Read(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")), It.Is<IHttp>(h => h != null))).Returns(Task.FromResult(returnContent));
+            this.provider.Setup(ic => ic.Insert(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")), It.IsAny<HttpContent>(), It.Is<IHttp>(h => h != null))).Returns(Task.FromResult(returnContent));
+            this.provider.Setup(ic => ic.Update(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")), It.IsAny<HttpContent>(), It.Is<IHttp>(h => h != null))).Returns(Task.FromResult(returnContent));
+            this.provider.Setup(ic => ic.Delete(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")), It.Is<IHttp>(h => h != null))).Returns(Task.FromResult(returnContent));
             this.provider.Setup(ic => ic.ProvidesCacheForRequest(It.IsAny<Uri>())).Returns(true);
 
             this.handler = new CacheHandler(this.provider.Object);
@@ -37,7 +40,46 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             this.provider.Verify(ic => ic.Read(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")), It.Is<IHttp>(h => h != null)), Times.Once);
 
             Assert.AreEqual(returnContent, response.Content);
-            provider.VerifyAll();
+            provider.Verify();
+        }
+
+        [TestMethod]
+        public async Task CacheHandlerCallInsertForPost()
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "http://localhost/");
+
+            var response = await this.httpClient.SendAsync(request);
+
+            this.provider.Verify(ic => ic.Insert(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")), It.IsAny<HttpContent>(), It.Is<IHttp>(h => h != null)), Times.Once);
+
+            Assert.AreEqual(returnContent, response.Content);
+            provider.Verify();
+        }
+
+        [TestMethod]
+        public async Task CacheHandlerCallUpdateForPatch()
+        {
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), "http://localhost/");
+
+            var response = await this.httpClient.SendAsync(request);
+
+            this.provider.Verify(ic => ic.Update(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")), It.IsAny<HttpContent>(), It.Is<IHttp>(h => h != null)), Times.Once);
+
+            Assert.AreEqual(returnContent, response.Content);
+            provider.Verify();
+        }
+
+        [TestMethod]
+        public async Task CacheHandlerCallDeleteForDelete()
+        {
+            var request = new HttpRequestMessage(HttpMethod.Delete, "http://localhost/");
+
+            var response = await this.httpClient.SendAsync(request);
+
+            this.provider.Verify(ic => ic.Delete(It.Is<Uri>(u => u.OriginalString.Equals("http://localhost/")), It.Is<IHttp>(h => h != null)), Times.Once);
+
+            Assert.AreEqual(returnContent, response.Content);
+            provider.Verify();
         }
     }
 }

@@ -19,7 +19,6 @@ using GalaSoft.MvvmLight.Ioc;
 using Microsoft.Practices.ServiceLocation;
 using Microsoft.WindowsAzure.MobileServices;
 using Microsoft.WindowsAzure.MobileServices.Caching;
-using Microsoft.WindowsAzure.MobileServices.Caching.CacheProviders;
 
 namespace Todo.ViewModels
 {

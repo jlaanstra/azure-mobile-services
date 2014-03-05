@@ -9,16 +9,16 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.Helpers
         [TestMethod]
         public void GetIdFromUriTest()
         {
-            string id = UriHelper.GetIdFromUri(new Uri("http://localhost/34"));
+            string id = UriHelper.GetIdFromUri(new Uri("http://localhost/tables/table/34"));
 
             Assert.IsFalse(string.IsNullOrEmpty(id));
             Assert.AreEqual("34", id);
         }
 
         [TestMethod]
-        public void GetIdFromUriWithtrailingSlashTest()
+        public void GetIdFromUriWithTrailingSlashTest()
         {
-            string id = UriHelper.GetIdFromUri(new Uri("http://localhost/34/"));
+            string id = UriHelper.GetIdFromUri(new Uri("http://localhost/tables/table/34/"));
 
             Assert.IsFalse(string.IsNullOrEmpty(id));
             Assert.AreEqual("34", id);
@@ -27,7 +27,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.Helpers
         [TestMethod]
         public void GetIdFromUriGuidTest()
         {
-            string id = UriHelper.GetIdFromUri(new Uri("http://localhost/98397639-DF26-41B2-A0BC-B79056B193A6"));
+            string id = UriHelper.GetIdFromUri(new Uri("http://localhost/tables/table/98397639-DF26-41B2-A0BC-B79056B193A6"));
 
             Assert.IsFalse(string.IsNullOrEmpty(id));
             Assert.AreEqual("98397639-DF26-41B2-A0BC-B79056B193A6", id);
@@ -35,7 +35,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test.Helpers
         [TestMethod]
         public void GetIdFromUriWithQueryTest()
         {
-            string id = UriHelper.GetIdFromUri(new Uri("http://localhost/98397639-DF26-41B2-A0BC-B79056B193A6?test=true"));
+            string id = UriHelper.GetIdFromUri(new Uri("http://localhost/tables/table/98397639-DF26-41B2-A0BC-B79056B193A6?test=true"));
 
             Assert.IsFalse(string.IsNullOrEmpty(id));
             Assert.AreEqual("98397639-DF26-41B2-A0BC-B79056B193A6", id);

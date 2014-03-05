@@ -16,7 +16,7 @@ namespace IntegrationApp.Tests.ConflictTests
     {
         public override async Task Initialize()
         {
-            this.Resolver = new LatestWriteWinsResolver();
+            this.Resolver = new LastWriteWinsResolver();
 
             await base.Initialize();
 

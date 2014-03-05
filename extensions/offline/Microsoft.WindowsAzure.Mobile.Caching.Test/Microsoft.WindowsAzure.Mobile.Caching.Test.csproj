@@ -41,8 +41,16 @@
     <Reference Include="Microsoft.Threading.Tasks.Extensions">
       <HintPath>..\packages\Microsoft.Bcl.Async.1.0.165\lib\net45\Microsoft.Threading.Tasks.Extensions.dll</HintPath>
     </Reference>
-    <Reference Include="Moq">
-      <HintPath>..\packages\Moq.4.2.1312.1622\lib\net40\Moq.dll</HintPath>
+    <Reference Include="Microsoft.WindowsAzure.Mobile, Version=1.1.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\WindowsAzure.MobileServices.1.1.4\lib\net45\Microsoft.WindowsAzure.Mobile.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.WindowsAzure.Mobile.Ext">
+      <HintPath>..\packages\WindowsAzure.MobileServices.1.1.4\lib\net45\Microsoft.WindowsAzure.Mobile.Ext.dll</HintPath>
+    </Reference>
+    <Reference Include="Moq, Version=4.2.1402.2112, Culture=neutral, PublicKeyToken=69f491c39445e920, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Moq.4.2.1402.2112\lib\net40\Moq.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.5.0.8\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -74,14 +82,21 @@
     <Compile Include="CacheProviders\DisabledCacheProviderTest.cs" />
     <Compile Include="CacheProviders\MemoryCacheProviderTest.cs" />
     <Compile Include="CacheProviders\TimestampCacheProviderTest.cs" />
+    <Compile Include="Conflicts\LastWriteWinsResolverTest.cs" />
+    <Compile Include="Extensions\ColumnTest.cs" />
+    <Compile Include="Extensions\ColumnTypeHelperTest.cs" />
     <Compile Include="Extensions\JObjectExtensionsTest.cs" />
+    <Compile Include="Extensions\MobileServiceClientExtensionsTest.cs" />
     <Compile Include="Handler\CacheHandlerTest.cs" />
     <Compile Include="Helpers\ResponseHelperTest.cs" />
     <Compile Include="Helpers\UriHelperTest.cs" />
     <Compile Include="Http\HttpTest.cs" />
     <Compile Include="OData\Parser\ODataFilterParserTest.cs" />
+    <Compile Include="OData\SQLiteExpressionVisitorTest.cs" />
+    <Compile Include="OData\UriQueryOptionsTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Storage\SQLiteStructuredStorageTest.cs" />
+    <Compile Include="Synchronizer\TimestampSynchronizerTestConflicts.cs" />
     <Compile Include="Synchronizer\TimestampSynchronizerTest.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -94,6 +109,7 @@
       <Name>Microsoft.WindowsAzure.Mobile.Caching</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
       <ItemGroup>

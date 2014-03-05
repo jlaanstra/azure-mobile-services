@@ -16,12 +16,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
         private Mock<IConflictResolver> conflictResolver;
         private Mock<IHttp> http;
 
-        private HttpContent responseContent = new StringContent(
-                @"{
-                    ""results"": [],
-                    ""deleted"": [],
+        private string responseContent = @"{{
+                    ""results"": [ {0} ],
+                    ""deleted"": [ {1} ],
                     ""__version"": ""00000000""
-                }");
+                }}";
+
+        private IDictionary<string, string> parameters = new Dictionary<string, string>() { { "test", "test" } };
 
         [TestInitialize]
         public void Setup()
@@ -49,19 +50,6 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
                     return Task.FromResult(0);
                 });
             this.http = new Mock<IHttp>();
-            this.http.Setup(h => h.CreateRequest(It.IsAny<HttpMethod>(), It.IsAny<Uri>(), It.IsAny<IDictionary<string, string>>()))
-                .Returns<HttpMethod, Uri, IDictionary<string, string>>((m, u, i) =>
-                {
-                    var req = new HttpRequestMessage(m, u);
-                    if (i != null)
-                    {
-                        foreach (var item in i)
-                        {
-                            req.Headers.Add(item.Key, item.Value);
-                        }
-                    }
-                    return req;
-                });
             this.conflictResolver = new Mock<IConflictResolver>();
             this.conflictResolver.Setup(c => c.Resolve(It.IsAny<Conflict>())).Returns(Task.FromResult(new ConflictResult()));
         }
@@ -73,36 +61,39 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 
             #region Setup
             HttpRequestMessage req = null;
-            string sendjson = null;
 
-            this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.Is<IQueryOptions>(iqo => iqo.Filter.RawValue.Equals("status ne 0")))).Returns(() =>
-            {
-                return Task.FromResult(new JArray(JObject.Parse(
+            this.http.Setup(h => h.SendAsync(It.IsAny<HttpRequestMessage>()))
+                .Returns<HttpRequestMessage>(async r =>
+                {
+                    req = r;
+                    var sendjson = await r.Content.ReadAsStringAsync();
+                    JObject send = JObject.Parse(sendjson);
+                    send["__version"] = "00000000";
+                    return new HttpResponseMessage() { Content = 
+                        new StringContent(string.Format(responseContent, send.ToString(), string.Empty)) };
+                });
+            #endregion
+
+            JObject jObj = JObject.Parse(
                         @"{
                             ""id"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
                             ""status"": 1,
                             ""__version"": ""00000000"",
                             ""text"": ""text""
                         }"
-                    )));
-            });
-            this.http.Setup(h => h.SendAsync(It.IsAny<HttpRequestMessage>()))
-                .Returns<HttpRequestMessage>(async r =>
-                {
-                    req = r;
-                    sendjson = await r.Content.ReadAsStringAsync();
-                    return new HttpResponseMessage() { Content = responseContent };
-                });
-            #endregion
+                    );
 
-            await synchronizer.UploadChanges(new Uri("http://localhost/tables/table/"), this.http.Object);
+            JObject result = await synchronizer.UploadChanges(new Uri("http://localhost/tables/table"), this.http.Object, jObj, parameters);
 
             Assert.IsNotNull(req);
-            IDictionary<string, JToken> obj = JObject.Parse(sendjson);
+            Assert.IsNotNull(result.Value<JArray>("results"));
 
+            IDictionary<string, JToken> obj = result.Value<JArray>("results").First as JObject;
+
+            Assert.IsNotNull(obj);
             Assert.IsTrue(obj.ContainsKey("id"));
             Assert.IsFalse(obj.ContainsKey("status"));
-            Assert.IsFalse(obj.ContainsKey("__version"));
+            Assert.IsTrue(obj.ContainsKey("__version"));
             Assert.AreEqual(HttpMethod.Post, req.Method);
         }
 
@@ -114,31 +105,33 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             #region Setup
             HttpRequestMessage req = null;
 
-            this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.Is<IQueryOptions>(iqo => iqo.Filter.RawValue.Equals("status ne 0")))).Returns(() =>
-            {
-                return Task.FromResult(new JArray(JObject.Parse(
+            this.http.Setup(h => h.SendAsync(It.IsAny<HttpRequestMessage>()))
+                .Callback<HttpRequestMessage>(r => req = r)
+                .Returns<HttpRequestMessage>(request => Task.FromResult(new HttpResponseMessage() { Content = 
+                        new StringContent(string.Format(responseContent, string.Empty, string.Format("\"{0}\"", UriHelper.GetIdFromUri(request.RequestUri)))) }));
+
+            #endregion
+
+            JObject jObj = JObject.Parse(
                         @"{
                             ""id"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
                             ""status"": 3,
                             ""__version"": ""00000000"",
                             ""text"": ""text""
                         }"
-                    )));
-            });
-            this.http.Setup(h => h.SendAsync(It.IsAny<HttpRequestMessage>()))
-                .Callback<HttpRequestMessage>(r => req = r)
-                .Returns(() => Task.FromResult(new HttpResponseMessage() { Content = responseContent }));
+                    );
 
-            #endregion
-
-            await synchronizer.UploadChanges(new Uri("http://localhost/tables/table/"), this.http.Object);
+            JObject result = await synchronizer.UploadChanges(new Uri("http://localhost/tables/table"), this.http.Object, jObj, parameters);
 
             Assert.IsNotNull(req);
             HttpContent sendContent = req.Content;
-
             Assert.IsNull(sendContent);
+
+            Assert.IsNotNull(result.Value<JArray>("deleted"));
+            JValue obj = result.Value<JArray>("deleted").First as JValue;
+            Assert.AreEqual("B1A60844-236A-43EA-851F-7DCD7D5755FA", obj.ToString());
             Assert.AreEqual(HttpMethod.Delete, req.Method);
-            Assert.IsTrue(req.RequestUri.OriginalString.EndsWith("B1A60844-236A-43EA-851F-7DCD7D5755FA?version=00000000"));
+            Assert.IsTrue(req.RequestUri.OriginalString.Contains("B1A60844-236A-43EA-851F-7DCD7D5755FA?version=00000000"));
         }
 
         [TestMethod]
@@ -148,38 +141,44 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 
             #region Setup
             HttpRequestMessage req = null;
-            string sendjson = null;
 
-            this.storage.Setup(iss => iss.GetStoredData(It.IsAny<string>(), It.Is<IQueryOptions>(iqo => iqo.Filter.RawValue.Equals("status ne 0")))).Returns(() =>
-            {
-                return Task.FromResult(new JArray(JObject.Parse(
+            this.http.Setup(h => h.SendAsync(It.IsAny<HttpRequestMessage>()))
+                .Returns<HttpRequestMessage>(async r =>
+                {
+                    req = r;
+                    var sendjson = await r.Content.ReadAsStringAsync();
+                    JObject send = JObject.Parse(sendjson);
+                    send["__version"] = "00000000";
+                    return new HttpResponseMessage()
+                    {
+                        Content =
+                            new StringContent(string.Format(responseContent, send.ToString(), string.Empty))
+                    };
+                });
+            #endregion
+
+            JObject jObj = JObject.Parse(
                         @"{
                             ""id"": ""B1A60844-236A-43EA-851F-7DCD7D5755FA"",
                             ""status"": 2,
                             ""__version"": ""00000000"",
                             ""text"": ""text""
                         }"
-                    )));
-            });
-            this.http.Setup(h => h.SendAsync(It.IsAny<HttpRequestMessage>()))
-                .Returns<HttpRequestMessage>(async r =>
-                {
-                    req = r;
-                    sendjson = await r.Content.ReadAsStringAsync();
-                    return new HttpResponseMessage() { Content = responseContent };
-                });
-            #endregion
+                    );
 
-            await synchronizer.UploadChanges(new Uri("http://localhost/tables/table/"), this.http.Object);
+            JObject result = await synchronizer.UploadChanges(new Uri("http://localhost/tables/table/"), this.http.Object, jObj, parameters);
 
             Assert.IsNotNull(req);
-            IDictionary<string, JToken> obj = JObject.Parse(sendjson);
+            Assert.IsNotNull(result.Value<JArray>("results"));
 
+            IDictionary<string, JToken> obj = result.Value<JArray>("results").First as JObject;
+
+            Assert.IsNotNull(obj);
             Assert.IsTrue(obj.ContainsKey("id"));
             Assert.IsFalse(obj.ContainsKey("status"));
-            Assert.IsFalse(obj.ContainsKey("__version"));
+            Assert.IsTrue(obj.ContainsKey("__version"));
             Assert.AreEqual(new HttpMethod("PATCH"), req.Method);
-            Assert.IsTrue(req.RequestUri.OriginalString.EndsWith("B1A60844-236A-43EA-851F-7DCD7D5755FA"));
+            Assert.IsTrue(req.RequestUri.OriginalString.Contains("B1A60844-236A-43EA-851F-7DCD7D5755FA"));            
         }
 
         [TestMethod]
@@ -223,7 +222,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
                 });
             HttpRequestMessage request = new HttpRequestMessage();
             request.Method = HttpMethod.Get;
-            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.Setup(h => h.SendAsync(It.Is<HttpRequestMessage>(r => r == request))).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
             #endregion

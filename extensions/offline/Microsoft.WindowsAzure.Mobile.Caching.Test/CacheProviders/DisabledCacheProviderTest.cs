@@ -3,7 +3,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Microsoft.WindowsAzure.MobileServices.Caching.CacheProviders;
+using Microsoft.WindowsAzure.MobileServices.Caching;
 using Moq;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
@@ -38,7 +38,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             request.Method = HttpMethod.Get;
             HttpResponseMessage response = new HttpResponseMessage();
             response.Content = testContent;
-            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.Setup(h => h.SendAsync(It.Is<HttpRequestMessage>(r => r == request))).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
             HttpContent content = await disabled.Read(testUri, this.http.Object);
@@ -57,7 +57,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             request.Method = HttpMethod.Post;
             HttpResponseMessage response = new HttpResponseMessage();
             response.Content = testContent;
-            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.Setup(h => h.SendAsync(It.Is<HttpRequestMessage>(r => r == request))).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
             HttpContent result = await disabled.Insert(testUri, testContent,this.http.Object);
@@ -77,7 +77,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             request.Method = new HttpMethod("PATCH");
             HttpResponseMessage response = new HttpResponseMessage();
             response.Content = testContent;
-            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.Setup(h => h.SendAsync(It.Is<HttpRequestMessage>(r => r == request))).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
             HttpContent result = await disabled.Update(testUri, testContent, this.http.Object);
@@ -97,7 +97,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             request.Method = HttpMethod.Delete;
             HttpResponseMessage response = new HttpResponseMessage();
             response.Content = null;
-            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.Setup(h => h.SendAsync(It.Is<HttpRequestMessage>(r => r == request))).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
 
             HttpContent result = await disabled.Delete(testUri, this.http.Object);
@@ -106,6 +106,16 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             Assert.AreEqual(null, request.Content);
             Assert.AreEqual(HttpMethod.Delete, request.Method);
             Assert.AreEqual(null, result);
+        }
+
+        [TestMethod]
+        public async Task PurgeWorks()
+        {
+            var disabled = new DisabledCacheProvider();
+
+            Task task = disabled.Purge();
+
+            Assert.IsTrue(task.IsCompleted);
         }
     }
 }

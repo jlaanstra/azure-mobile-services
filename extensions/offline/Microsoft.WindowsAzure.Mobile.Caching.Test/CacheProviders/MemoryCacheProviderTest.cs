@@ -39,7 +39,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             request.Method = HttpMethod.Get;
             HttpResponseMessage response = new HttpResponseMessage();
             response.Content = testContent;
-            this.http.Setup(h => h.SendOriginalAsync()).Returns(() => Task.FromResult(response));
+            this.http.Setup(h => h.SendAsync(It.Is<HttpRequestMessage>(r => r == request))).Returns(() => Task.FromResult(response));
             this.http.SetupGet(h => h.OriginalRequest).Returns(request);
             #endregion
 
@@ -52,6 +52,35 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             Assert.AreEqual(testContent, result);
 
             await Task.Delay(5000);
+
+            result = await memory.Read(testUri, this.http.Object);
+            Assert.AreEqual(empty, result);
+        }
+
+        [TestMethod]
+        public async Task PurgeClearsCache()
+        {
+            #region Setup
+            var memory = new MemoryCacheProvider(TimeSpan.FromSeconds(5));
+            HttpContent empty = new StringContent(string.Empty);
+
+            HttpRequestMessage request = new HttpRequestMessage();
+            request.Method = HttpMethod.Get;
+            HttpResponseMessage response = new HttpResponseMessage();
+            response.Content = testContent;
+            this.http.Setup(h => h.SendAsync(It.Is<HttpRequestMessage>(v => v == request))).Returns(() => Task.FromResult(response));
+            this.http.SetupGet(h => h.OriginalRequest).Returns(request);
+            #endregion
+
+            HttpContent result = await memory.Read(testUri, this.http.Object);
+            Assert.AreEqual(testContent, result);
+
+            response.Content = empty;
+
+            result = await memory.Read(testUri, this.http.Object);
+            Assert.AreEqual(testContent, result);
+
+            await memory.Purge();
 
             result = await memory.Read(testUri, this.http.Object);
             Assert.AreEqual(empty, result);

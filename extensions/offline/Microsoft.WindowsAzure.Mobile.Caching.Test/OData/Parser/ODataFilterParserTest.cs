@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -33,6 +34,64 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             Assert.IsFalse((bool)((ODataConstantExpression)exp).Value);
         }
 
+        [TestMethod]
+        public void NullExpressionTest()
+        {
+            ODataFilterParser parser = new ODataFilterParser("null");
+
+            ODataExpression exp = parser.Parse();
+            Assert.IsNotNull(exp);
+            Assert.IsTrue(exp.GetType() == typeof(ODataConstantExpression));
+            Assert.AreEqual(null, ((ODataConstantExpression)exp).Value);
+        }
+
+        [TestMethod]
+        public void DoubleInfinityExpressionTest()
+        {
+            ODataFilterParser parser = new ODataFilterParser("INF");
+
+            ODataExpression exp = parser.Parse();
+
+            Assert.IsNotNull(exp);
+            Assert.IsTrue(exp.GetType() == typeof(ODataConstantExpression));
+            Assert.AreEqual(double.PositiveInfinity, ((ODataConstantExpression)exp).Value);
+        }
+
+        [TestMethod]
+        public void FloatInfinityExpressionTest()
+        {
+            ODataFilterParser parser = new ODataFilterParser("INFf");
+
+            ODataExpression exp = parser.Parse();
+
+            Assert.IsNotNull(exp);
+            Assert.IsTrue(exp.GetType() == typeof(ODataConstantExpression));
+            Assert.AreEqual(float.PositiveInfinity, ((ODataConstantExpression)exp).Value);
+        }
+
+        [TestMethod]
+        public void BinaryLiteralExpressionTest()
+        {
+            ODataFilterParser parser = new ODataFilterParser("binary'0050'");
+
+            ODataExpression exp = parser.Parse();
+
+            Assert.IsNotNull(exp);
+            Assert.IsTrue(exp.GetType() == typeof(ODataConstantExpression));
+            Assert.IsTrue(new byte[] { 0x00, 0x50 }.SequenceEqual((IEnumerable<byte>)((ODataConstantExpression)exp).Value));
+        }
+
+        [TestMethod]
+        public void GuidExpressionTest()
+        {
+            ODataFilterParser parser = new ODataFilterParser("guid'517C7C81-4F89-411F-B015-262B60EFD591'");
+
+            ODataExpression exp = parser.Parse();
+            Assert.IsNotNull(exp);
+            Assert.IsTrue(exp.GetType() == typeof(ODataConstantExpression));
+            Assert.AreEqual(new Guid("517C7C81-4F89-411F-B015-262B60EFD591"), ((ODataConstantExpression)exp).Value);
+        }
+        
         [TestMethod]
         public void AndExpressionTest()
         {

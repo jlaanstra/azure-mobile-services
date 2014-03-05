@@ -98,5 +98,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 
             Assert.IsNotNull(ex);
         }
+
+        [TestMethod]
+        public void CreateSyncResponseTest()
+        {
+            JObject jObj = ResponseHelper.CreateSyncResponseWithItems(null, null);
+
+            Assert.IsNotNull(jObj.Value<JArray>("results"));
+            Assert.IsNotNull(jObj.Value<JArray>("deleted"));
+        }
     }
 }
