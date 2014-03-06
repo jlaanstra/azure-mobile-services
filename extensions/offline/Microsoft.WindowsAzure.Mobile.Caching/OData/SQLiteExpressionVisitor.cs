@@ -218,7 +218,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     break;
                 case "indexof":
                     this.sqlBuilder.Append("(");
-                    this.sqlBuilder.Append("insrt(");
+                    this.sqlBuilder.Append("instr(");
                     this.Visit(expr.Arguments[0]);
                     this.sqlBuilder.Append(", ");
                     this.Visit(expr.Arguments[1]);
