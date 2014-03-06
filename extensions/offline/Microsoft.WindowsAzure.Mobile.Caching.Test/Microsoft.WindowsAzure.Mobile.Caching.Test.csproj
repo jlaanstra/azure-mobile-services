@@ -81,6 +81,7 @@
   <ItemGroup>
     <Compile Include="CacheProviders\DisabledCacheProviderTest.cs" />
     <Compile Include="CacheProviders\MemoryCacheProviderTest.cs" />
+    <Compile Include="CacheProviders\TimestampCacheProviderTestOffline.cs" />
     <Compile Include="CacheProviders\TimestampCacheProviderTest.cs" />
     <Compile Include="Conflicts\LastWriteWinsResolverTest.cs" />
     <Compile Include="Extensions\ColumnTest.cs" />

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -27,6 +28,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
             this.provider.Setup(ic => ic.ProvidesCacheForRequest(It.IsAny<Uri>())).Returns(true);
 
             this.handler = new CacheHandler(this.provider.Object);
+            this.handler.InnerHandler = new TestHandler();
             this.httpClient = new HttpClient(this.handler);
         }
 
@@ -80,6 +82,26 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching.Test
 
             Assert.AreEqual(returnContent, response.Content);
             provider.Verify();
+        }
+
+        [TestMethod]
+        public async Task CacheHandlerSendRequestIfNoCache()
+        {
+            this.provider.Setup(ic => ic.ProvidesCacheForRequest(It.IsAny<Uri>())).Returns(false);
+
+            var request = new HttpRequestMessage(HttpMethod.Delete, "http://localhost/");
+
+            var response = await this.httpClient.SendAsync(request);
+
+            Assert.AreEqual(HttpStatusCode.InternalServerError, response.StatusCode);
+        }
+
+        public class TestHandler : HttpMessageHandler
+        {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, System.Threading.CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError));
+            }
         }
     }
 }
