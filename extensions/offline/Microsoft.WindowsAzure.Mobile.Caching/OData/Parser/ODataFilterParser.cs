@@ -10,11 +10,15 @@ using System.Xml;
 
 namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
+    /// <summary>
+    /// Based on the OData parser on http://odata.codeplex.com. The code has been changed on lots of places 
+    /// because the code on odata.codeplex.com is from 2012.
+    /// </summary>
     public class ODataFilterParser
     {
-        private static readonly ODataConstantExpression trueLiteral = new ODataConstantExpression(true);
-        private static readonly ODataConstantExpression falseLiteral = new ODataConstantExpression(false);
-        private static readonly ODataConstantExpression nullLiteral = new ODataConstantExpression(null);
+        private static readonly ODataExpression trueLiteral = ODataExpressionFactory.Constant(true);
+        private static readonly ODataExpression falseLiteral = ODataExpressionFactory.Constant(false);
+        private static readonly ODataExpression nullLiteral = ODataExpressionFactory.Constant(null);
 
         private static char[] WhitespaceChars = new char[]
         {
@@ -138,10 +142,10 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 switch (prevToken.Id)
                 {
                     case TokenId.Add:
-                        left = ODataExpression.Add(left, right);
+                        left = ODataExpressionFactory.Add(left, right);
                         break;
                     case TokenId.Sub:
-                        left = ODataExpression.Subtract(left, right);
+                        left = ODataExpressionFactory.Subtract(left, right);
                         break;
                 }
             }
@@ -197,7 +201,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 bytes[j] = byte.Parse(hexValue, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
             }
             this.NextToken();
-            return new ODataConstantExpression(bytes);
+            return ODataExpressionFactory.Constant(bytes);
         }
 
         private ODataExpression ParseBooleanLiteral()
@@ -233,22 +237,22 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 switch (op.Id)
                 {
                     case TokenId.Equal:
-                        left = ODataExpression.Equal(left, right);
+                        left = ODataExpressionFactory.Equal(left, right);
                         break;
                     case TokenId.NotEqual:
-                        left = ODataExpression.NotEqual(left, right);
+                        left = ODataExpressionFactory.NotEqual(left, right);
                         break;
                     case TokenId.GreaterThan:
-                        left = ODataExpression.GreaterThan(left, right);
+                        left = ODataExpressionFactory.GreaterThan(left, right);
                         break;
                     case TokenId.GreaterThanEqual:
-                        left = ODataExpression.GreaterThanOrEqual(left, right);
+                        left = ODataExpressionFactory.GreaterThanOrEqual(left, right);
                         break;
                     case TokenId.LessThan:
-                        left = ODataExpression.LessThan(left, right);
+                        left = ODataExpressionFactory.LessThan(left, right);
                         break;
                     case TokenId.LessThanEqual:
-                        left = ODataExpression.LessThanOrEqual(left, right);
+                        left = ODataExpressionFactory.LessThanOrEqual(left, right);
                         break;
                 }
             }
@@ -269,7 +273,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 this.NextToken();
                 ODataExpression right = this.ParseComparison();
-                left = ODataExpression.AndAlso(left, right);
+                left = ODataExpressionFactory.AndAlso(left, right);
             }
             return left;
         }
@@ -282,7 +286,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 this.NextToken();
                 ODataExpression right = this.ParseLogicalAnd();
-                left = ODataExpression.OrElse(left, right);
+                left = ODataExpressionFactory.OrElse(left, right);
             }
             return left;
         }        
@@ -299,13 +303,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 switch (prevToken.Id)
                 {
                     case TokenId.Multiply:
-                        left = ODataExpression.Multiply(left, right);
+                        left = ODataExpressionFactory.Multiply(left, right);
                         break;
                     case TokenId.Divide:
-                        left = ODataExpression.Divide(left, right);
+                        left = ODataExpressionFactory.Divide(left, right);
                         break;
                     case TokenId.Modulo:
-                        left = ODataExpression.Modulo(left, right);
+                        left = ODataExpressionFactory.Modulo(left, right);
                         break;
                 }
             }
@@ -328,11 +332,11 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 ODataExpression expr = this.ParseUnary();
                 if (currentToken.Id == TokenId.Minus)
                 {
-                    expr = ODataExpression.Negate(expr);
+                    expr = ODataExpressionFactory.Negate(expr);
                 }
                 else
                 {
-                    expr = ODataExpression.Not(expr);
+                    expr = ODataExpressionFactory.Not(expr);
                 }
                 return expr;
             }
@@ -421,7 +425,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             if (TryRemoveQuotes(ref s))
             {
                 this.NextToken();
-                return new ODataConstantExpression(s);
+                return ODataExpressionFactory.Constant(s);
             }
             else
             {
@@ -436,7 +440,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             string text = this.token.Text;
             int value = XmlConvert.ToInt32(text);
             this.NextToken();
-            return new ODataConstantExpression(value);
+            return ODataExpressionFactory.Constant(value);
         }
 
         private ODataExpression ParseInt64Literal()
@@ -448,7 +452,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 long value = XmlConvert.ToInt64(text);
                 this.NextToken();
-                return new ODataConstantExpression(value);
+                return ODataExpressionFactory.Constant(value);
             }
             else
             {
@@ -465,7 +469,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 float value = XmlConvert.ToSingle(text);
                 this.NextToken();
-                return new ODataConstantExpression(value);
+                return ODataExpressionFactory.Constant(value);
             }
             else
             {
@@ -482,13 +486,13 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             {
                 double value = XmlConvert.ToDouble(text);
                 this.NextToken();
-                return new ODataConstantExpression(value);
+                return ODataExpressionFactory.Constant(value);
             }
             else
             {
                 double value = XmlConvert.ToDouble(text);
                 this.NextToken();
-                return new ODataConstantExpression(value);
+                return ODataExpressionFactory.Constant(value);
             }
         }
 
@@ -517,7 +521,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                     }
                 }
                 this.NextToken();
-                return new ODataConstantExpression(value);
+                return ODataExpressionFactory.Constant(value);
             }
             else
             {
@@ -539,7 +543,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
             DateTime dateTime = DateTime.Parse(datetimeString, null, DateTimeStyles.AdjustToUniversal);
             this.NextToken();
-            return new ODataConstantExpression(dateTime);
+            return ODataExpressionFactory.Constant(dateTime);
         }
 
         private ODataExpression ParseTimeLiteral()
@@ -556,7 +560,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
             TimeSpan timespan = TimeSpan.Parse(timeString, CultureInfo.InvariantCulture);
             this.NextToken();
-            return new ODataConstantExpression(timespan);
+            return ODataExpressionFactory.Constant(timespan);
         }
 
         private ODataExpression ParseGuidLiteral()
@@ -573,7 +577,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
             Guid guid = Guid.Parse(guidString);
             this.NextToken();
-            return new ODataConstantExpression(guid);
+            return ODataExpressionFactory.Constant(guid);
         }
 
         private ODataExpression ParseParenthesisExpression()
@@ -601,7 +605,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             Token currentToken = this.token;
             this.NextToken();
             ODataExpression[] arguments = this.ParseArgumentList(TokenId.Comma);
-            return new ODataFunctionCallExpression(currentToken.Text, arguments);
+            return ODataExpressionFactory.FunctionCall(currentToken.Text, arguments);
         }                
 
         private ODataExpression ParseMemberAccess(ODataExpression instance)
@@ -612,7 +616,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             }
             string identifier = this.GetIdentifier();
             this.NextToken();
-            return new ODataMemberExpression(instance, identifier);
+            return ODataExpressionFactory.Member(instance, identifier);
         }
 
         private void SetTextPos(int pos)
