@@ -137,6 +137,7 @@
     <Compile Include="OData\InlineCountQuery.cs" />
     <Compile Include="OData\IQueryOption.cs" />
     <Compile Include="OData\IQueryOptions.cs" />
+    <Compile Include="OData\Parser\ODataExpressionFactory.cs" />
     <Compile Include="OData\SQLiteExpressionVisitor.cs" />
     <Compile Include="OData\StaticQueryOptions.cs" />
     <Compile Include="OData\UriQueryOptions.cs" />

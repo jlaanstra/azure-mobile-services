@@ -17,7 +17,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             int intValue;
             if (int.TryParse(skip, out intValue))
             {
-                return new ODataSkipExpression(intValue);
+                return ODataExpressionFactory.Skip(intValue);
             }
             else
             {
@@ -30,7 +30,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             int intValue;
             if (int.TryParse(top, out intValue))
             {
-                return new ODataTopExpression(intValue);
+                return ODataExpressionFactory.Top(intValue);
             }
             else
             {
@@ -40,7 +40,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public static ODataExpression ParseOrderBy(string orderby)
         {
-            return new ODataOrderByExpression(orderby.Split(',').Select(o => o.Trim()).Select(o => ToSelector(o)));
+            return ODataExpressionFactory.OrderBy(orderby.Split(',').Select(o => o.Trim()).Select(o => ToSelector(o)));
         }
 
         private static ODataOrderByExpression.Selector ToSelector(string orderby)
@@ -48,7 +48,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             string[] orderParts = orderby.Split(' ');
             string propertyName = orderParts.First();
             Order order = (orderParts.Length > 1) ? (orderParts[1].Equals("desc") ? Order.Descending : Order.Ascending) : Order.Ascending;
-            return new ODataOrderByExpression.Selector(new ODataMemberExpression(null,propertyName), order);
+            return new ODataOrderByExpression.Selector(ODataExpressionFactory.Member(null, propertyName), order);
         }
 
         public static ODataExpression ParseInlineCount(string inlineCount)
@@ -56,7 +56,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             InlineCount enumValue;
             if (Enum.TryParse(inlineCount, true, out enumValue))
             {
-                return new ODataInlineCountExpression(enumValue);
+                return ODataExpressionFactory.InlineCount(enumValue);
             }
             else
             {
