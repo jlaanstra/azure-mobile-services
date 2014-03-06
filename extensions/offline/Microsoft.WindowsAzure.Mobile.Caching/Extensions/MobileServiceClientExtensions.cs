@@ -13,7 +13,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         {
             IStructuredStorage storage = new SQLiteStructuredStorage("Microsoft.WindowsAzure.Mobile.Caching.db");
             ISynchronizer synchronizer = new TimestampSynchronizer(storage, localConflictResolver ?? new NoConflictResolver());
-            ICacheProvider cacheProvider = new TimestampCacheProvider(storage, networkInfo, synchronizer, u => u.OriginalString.Contains("/tables/"));
+            ICacheProvider cacheProvider = new TimestampCacheProvider(storage, networkInfo, synchronizer);
 
             return new MobileServiceClient(This.ApplicationUri, This.ApplicationKey, new CacheHandler(cacheProvider), new HttpClientHandler());
         }
