@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -62,6 +63,34 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 parameters.Add(kvp);
             }
             return parameters;
+        }
+
+        public static string GetQueryString(IDictionary<string, string> parameters)
+        {
+            string parametersString = null;
+
+            if (parameters != null && parameters.Count > 0)
+            {
+                parametersString = "";
+                string formatString = "{0}={1}";
+                foreach (var parameter in parameters)
+                {
+                    if (parameter.Key.StartsWith("$"))
+                    {
+                        throw new ArgumentException();
+                    }
+
+                    string escapedKey = Uri.EscapeDataString(parameter.Key);
+                    string escapedValue = Uri.EscapeDataString(parameter.Value);
+                    parametersString += string.Format(CultureInfo.InvariantCulture,
+                                                      formatString,
+                                                      escapedKey,
+                                                      escapedValue);
+                    formatString = "&{0}={1}";
+                }
+            }
+
+            return parametersString;
         }
     }
 }

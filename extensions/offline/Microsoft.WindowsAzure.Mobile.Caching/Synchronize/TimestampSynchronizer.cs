@@ -174,11 +174,14 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
                 JObject result = await action(change);
                 // check if conflict was resolved on the server
                 string resolveStrategy = result.Value<string>("conflictResolved");
-                if(resolveStrategy != null)
+                if (resolveStrategy != null)
                 {
                     conflicts.Add(new ResolvedConflict(resolveStrategy, (ConflictType)result.Value<int>("conflictType"), ResponseHelper.GetResultsJArrayFromJson(result).OfType<JObject>()));
                 }
-                response = ResponseHelper.MergeResponses(response, result);
+                else
+                {
+                    response = ResponseHelper.MergeResponses(response, result);
+                }
             }
 
             // if we have conflicts resolved responses might not conform to Mobile Services formats 
@@ -246,7 +249,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             //remove systemproperties
             JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
 
-            string paramString = TimestampSynchronizer.GetQueryString(parameters);
+            string paramString = UriHelper.GetQueryString(parameters);
 
             Uri insertUri = new Uri(string.Format("{0}{1}",
                 tableUri.OriginalString.TrimEnd('/'),
@@ -274,7 +277,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
             //remove systemproperties
             JObject insertItem = item.Remove(prop => prop.Name.StartsWith("__"));
 
-            string paramString = TimestampSynchronizer.GetQueryString(parameters);
+            string paramString = UriHelper.GetQueryString(parameters);
 
             Uri updateUri = new Uri(string.Format("{0}/{1}{2}",
                 tableUri.OriginalString.TrimEnd('/'),
@@ -289,7 +292,7 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 
         public Task<JObject> UploadDelete(JObject item, Uri tableUri, IHttp http, IDictionary<string, string> parameters = null)
         {
-            string paramString = TimestampSynchronizer.GetQueryString(parameters);
+            string paramString = UriHelper.GetQueryString(parameters);
             Uri deleteUri = new Uri(string.Format("{0}/{1}?version={2}{3}", 
                 tableUri.OriginalString.TrimEnd('/'), 
                 Uri.EscapeDataString(item["id"].ToString()), 
@@ -353,35 +356,5 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
         }
 
         #endregion
-
-        public static string GetQueryString(IDictionary<string, string> parameters)
-        {
-            string parametersString = null;
-
-            if (parameters != null && parameters.Count > 0)
-            {
-                parametersString = "";
-                string formatString = "{0}={1}";
-                foreach (var parameter in parameters)
-                {
-                    if (parameter.Key.StartsWith("$"))
-                    {
-                        throw new ArgumentException();
-                    }
-
-                    string escapedKey = Uri.EscapeDataString(parameter.Key);
-                    string escapedValue = Uri.EscapeDataString(parameter.Value);
-                    parametersString += string.Format(CultureInfo.InvariantCulture,
-                                                      formatString,
-                                                      escapedKey,
-                                                      escapedValue);
-                    formatString = "&{0}={1}";
-                }
-            }
-
-            return parametersString;
-        }
-
-        
     }
 }
