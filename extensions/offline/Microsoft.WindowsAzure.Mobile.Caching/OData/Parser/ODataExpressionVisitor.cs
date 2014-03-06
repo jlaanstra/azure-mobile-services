@@ -8,7 +8,31 @@ namespace Microsoft.WindowsAzure.MobileServices.Caching
 {
     public abstract class ODataExpressionVisitor
     {
-        public abstract IQueryOptions VisitQueryOptions(IQueryOptions query);
+        public virtual IQueryOptions VisitQueryOptions(IQueryOptions query)
+        {
+            if (query.Filter != null && !string.IsNullOrEmpty(query.Filter.RawValue))
+            {
+                this.Visit(query.Filter.Expression);
+            }
+            if (query.OrderBy != null && !string.IsNullOrEmpty(query.OrderBy.RawValue))
+            {
+                this.Visit(query.OrderBy.Expression);
+            }
+            if (query.Top != null && !string.IsNullOrEmpty(query.Top.RawValue))
+            {
+                this.Visit(query.Top.Expression);
+            }
+            if (query.Skip != null && !string.IsNullOrEmpty(query.Skip.RawValue))
+            {
+                this.Visit(query.Skip.Expression);
+            }
+            if (query.InlineCount != null && !string.IsNullOrEmpty(query.InlineCount.RawValue))
+            {
+                this.Visit(query.InlineCount.Expression);
+            }
+
+            return query;
+        }
 
         public virtual ODataExpression Visit(ODataExpression expr)
         {
