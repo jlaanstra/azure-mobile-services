@@ -21,6 +21,8 @@
 				<Function>.*\.SQLiteStructuredStorage\..*</Function>
 				<!-- Exclude methods in a class or namespace named SQLiteConnection: -->
 				<Function>.*\.SQLiteConnectionExtensions\..*</Function>
+				<!-- Exclude generated resources: -->
+				<Function>.*\.Resources\..*</Function>
 			  </Exclude>
 			</Functions>
             <UseVerifiableInstrumentation>True</UseVerifiableInstrumentation>
