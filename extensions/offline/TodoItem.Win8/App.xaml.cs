@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using GalaSoft.MvvmLight.Messaging;
 using Microsoft.WindowsAzure.MobileServices;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.UI.Core;
+using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -30,6 +33,19 @@ namespace Todo
         {
             this.InitializeComponent();
             this.Suspending += OnSuspending;
+
+            Messenger.Default.Register<ShowDialogMessage>(this, async sdm =>
+            {
+                await Window.Current.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+                {
+                    MessageDialog dialog = new MessageDialog(sdm.Content, sdm.Title);
+                    foreach (Button b in sdm.Buttons)
+                    {
+                        dialog.Commands.Add(new UICommand(b.Title, u => b.CallBack(b)));
+                    }
+                    await dialog.ShowAsync();
+                });
+            });
         }
 
         /// <summary>

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Resources;
 using System.Windows;
 using System.Windows.Markup;
@@ -9,6 +10,7 @@ using Microsoft.Phone.Shell;
 using Todo.Resources;
 
 using Microsoft.WindowsAzure.MobileServices;
+using GalaSoft.MvvmLight.Messaging;
 
 namespace Todo
 {
@@ -19,11 +21,6 @@ namespace Todo
         /// </summary>
         /// <returns>The root frame of the Phone Application.</returns>
         public static PhoneApplicationFrame RootFrame { get; private set; }
-
-        public static MobileServiceClient MobileService = new MobileServiceClient(
-            "https://t-jlaans.azure-mobile.net/",
-            "nFeGoOHBuBZpuMYCmCCQweEYjFYvWM26"
-            );
         
         /// <summary>
         /// Constructor for the Application object.
@@ -62,6 +59,23 @@ namespace Todo
                 PhoneApplicationService.Current.UserIdleDetectionMode = IdleDetectionMode.Disabled;
             }
 
+            Messenger.Default.Register<ShowDialogMessage>(this, sdm =>
+            {
+                Application.Current.RootVisual.Dispatcher.BeginInvoke(() =>
+                {
+                    MessageBoxResult dialog = MessageBox.Show(sdm.Content, sdm.Title, MessageBoxButton.OKCancel);
+                    if (dialog == MessageBoxResult.OK)
+                    {
+                        Button b = sdm.Buttons.First();
+                        b.CallBack(b);
+                    }
+                    else
+                    {
+                        Button b = sdm.Buttons.Skip(1).First();
+                        b.CallBack(b);
+                    }
+                });
+            });
         }
 
         // Code to execute when the application is launching (eg, from Start)

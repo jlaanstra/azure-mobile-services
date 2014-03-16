@@ -8,7 +8,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:i="using:Windows.UI.Interactivity"
-    xmlns:behaviors="using:Todo.Behavior"
+    xmlns:behaviors="using:Todo.Behaviors"
     DataContext="{Binding MainViewModel, Source={StaticResource Locator}}"
     mc:Ignorable="d">
 
@@ -65,11 +65,16 @@
                     <ListView.ItemTemplate>
                         <DataTemplate>
                             <Grid>
-                                <CheckBox Name="CheckBoxComplete" IsChecked="{Binding Complete, Mode=TwoWay}" Content="{Binding Text}" Margin="10,5" VerticalAlignment="Center">
+                                <CheckBox Name="CheckBoxComplete" IsChecked="{Binding Complete, Mode=TwoWay}" Margin="10,5" VerticalAlignment="Center">
                                     <i:Interaction.Behaviors>
                                         <behaviors:CheckedBehavior Command="{Binding ElementName=root, Path=DataContext.CompletedCommand}" CommandParameter="{Binding}" />
                                     </i:Interaction.Behaviors>
                                 </CheckBox>
+                                <TextBox x:Name="ToDoText" Height="25" Width="300" Margin="10" Text="{Binding Text, Mode=TwoWay}" AcceptsReturn="False">
+                                    <i:Interaction.Behaviors>
+                                        <behaviors:TextBoxFocusBehavior Command="{Binding ElementName=root, Path=DataContext.UpdateTextCommand}" CommandParameter="{Binding}" />
+                                    </i:Interaction.Behaviors>
+                                </TextBox>
                                 <Button Content="remove" HorizontalAlignment="Right" Command="{Binding ElementName=root, Path=DataContext.RemoveCommand}" CommandParameter="{Binding}" />
                             </Grid>
                         </DataTemplate>
@@ -77,10 +82,13 @@
                 </ListView>
 
             </Grid>
-            
-            <ToggleSwitch Grid.Row="2" HorizontalAlignment="Center" Grid.ColumnSpan="2"
+
+            <ToggleSwitch Grid.Row="2" HorizontalAlignment="Right" Grid.Column="0"
                           OffContent="Offline" OnContent="Online"
                           IsOn="{Binding IsOnline,Mode=TwoWay}"/>
+            <ToggleSwitch Grid.Row="2" HorizontalAlignment="Left" Grid.Column="1"
+                          OffContent="Server" OnContent="Client"
+                          IsOn="{Binding ConflictsOnClient,Mode=TwoWay}"/>
         </Grid>
     </Grid>
 </Page>

@@ -14,7 +14,6 @@ using System.Windows.Interactivity;
 using System.Windows.Controls;
 using System.Windows;
 #endif
-
 #if Win8
 using Windows.UI.Interactivity;
 #elif Win81
@@ -23,13 +22,13 @@ using Microsoft.Xaml.Interactivity;
 
 namespace Todo.Behaviors
 {
-    public class CheckedBehavior : Behavior<CheckBox>
+    public class TextBoxFocusBehavior : Behavior<TextBox>
     {
         public static readonly DependencyProperty CommandProperty
             = DependencyProperty.Register(
                 "Command",
                 typeof(ICommand),
-                typeof(CheckedBehavior),
+                typeof(TextBoxFocusBehavior),
                 new PropertyMetadata(null));
 
         public ICommand Command
@@ -42,7 +41,7 @@ namespace Todo.Behaviors
             = DependencyProperty.Register(
                 "CommandParameter",
                 typeof(object),
-                typeof(CheckedBehavior),
+                typeof(TextBoxFocusBehavior),
                 new PropertyMetadata(null));
 
         public object CommandParameter
@@ -55,22 +54,22 @@ namespace Todo.Behaviors
         {
             base.OnAttached();
 
-            this.AssociatedObject.Checked += AssociatedObject_Checked;
+            this.AssociatedObject.LostFocus += AssociatedObject_LostFocus;
         }
 
         protected override void OnDetaching()
         {
             base.OnDetaching();
 
-            this.AssociatedObject.Checked -= AssociatedObject_Checked;
+            this.AssociatedObject.LostFocus -= AssociatedObject_LostFocus;
         }
 
-        void AssociatedObject_Checked(object sender, RoutedEventArgs e)
+        void AssociatedObject_LostFocus(object sender, RoutedEventArgs e)
         {
             if (this.Command != null)
             {
                 this.Command.Execute(this.CommandParameter);
             }
-        } 
+        }
     }
 }

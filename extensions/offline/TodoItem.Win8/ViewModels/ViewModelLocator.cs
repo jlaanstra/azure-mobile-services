@@ -49,7 +49,8 @@ namespace Todo.ViewModels
                 Constants.MobileServiceUrl,
                 Constants.MobileServiceKey
             );
-            MobileService = MobileService.UseOfflineDataCapabilitiesForTables(SimpleIoc.Default.GetInstance<INetworkInformation>());
+            MobileService = MobileService.UseOfflineDataCapabilitiesForTables(
+                SimpleIoc.Default.GetInstance<INetworkInformation>(), new DialogConflictResolver());
 
             SimpleIoc.Default.Register<IMobileServiceClient>(() => MobileService);
         }

@@ -6,7 +6,10 @@ using System.Text;
 using System.Threading.Tasks;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
+using GalaSoft.MvvmLight.Messaging;
 using Microsoft.WindowsAzure.MobileServices;
+using Microsoft.WindowsAzure.MobileServices.Caching;
+using Newtonsoft.Json;
 
 namespace Todo.ViewModels
 {
@@ -15,7 +18,10 @@ namespace Todo.ViewModels
         private readonly IMobileServiceClient client;
         private readonly NetworkInformationDelegate networkDelegate;
 
-        private readonly IMobileServiceTable<TodoItem2> todoTable;
+        private readonly IMobileServiceTable<TodoItem> todoTable;
+
+        private IDictionary<string, string> param = new Dictionary<string, string>() { { "resolveStrategy", "client" } };
+        private IDictionary<string, string> empty = new Dictionary<string, string>();
 
         /// <summary>
         /// 
@@ -26,25 +32,30 @@ namespace Todo.ViewModels
             this.client = client;
             this.networkDelegate = networkDelegate;
 
-            this.todoTable = client.GetTable<TodoItem2>();
+            this.todoTable = client.GetTable<TodoItem>();
 
-            this.RefreshCommand = new RelayCommand(this.RefreshTodoItems);
-            this.SaveCommand = new RelayCommand(this.Save);
-            this.CompletedCommand = new RelayCommand<TodoItem2>(x => this.Complete(x));
-            this.RemoveCommand = new RelayCommand<TodoItem2>(x => this.Remove(x));
+            this.RefreshCommand = new RelayCommand(async() => await this.RefreshTodoItems());
+            this.SaveCommand = new RelayCommand(async () => await this.SaveTodoItem());
+            this.CompletedCommand = new RelayCommand<TodoItem>(async x =>
+            {
+                x.Complete = true;
+                await this.UpdateTodoItem(x);
+                this.Items.Remove(x);
+            });
+            this.UpdateTextCommand = new RelayCommand<TodoItem>(async x => await this.UpdateTodoItem(x));
+            this.RemoveCommand = new RelayCommand<TodoItem>(async x => await this.RemoveTodoItem(x));
 
-            this.Items = new ObservableCollection<TodoItem2>();
-
-            //this.RefreshTodoItems();
+            this.Items = new ObservableCollection<TodoItem>();
         }
 
         public RelayCommand RefreshCommand { get; set; }
-        public RelayCommand<TodoItem2> RemoveCommand { get; set; }
+        public RelayCommand<TodoItem> RemoveCommand { get; set; }
         public RelayCommand SaveCommand { get; set; }
-        public RelayCommand<TodoItem2> CompletedCommand { get; set; }
+        public RelayCommand<TodoItem> UpdateTextCommand { get; set; }
+        public RelayCommand<TodoItem> CompletedCommand { get; set; }
 
-        private ObservableCollection<TodoItem2> items;
-        public ObservableCollection<TodoItem2> Items
+        private ObservableCollection<TodoItem> items;
+        public ObservableCollection<TodoItem> Items
         {
             get { return this.items; }
             set { this.Set(ref items, value, "Items"); }
@@ -63,16 +74,16 @@ namespace Todo.ViewModels
             set { this.networkDelegate.IsOnline = value; }
         }
 
-        private async Task InsertTodoItem(TodoItem2 todoItem)
+        private bool conflictsOnClient;
+        public bool ConflictsOnClient
         {
-            // This code inserts a new TodoItem into the database. When the operation completes
-            // and Mobile Services has assigned an Id, the item is added to the CollectionView
-            await todoTable.InsertAsync(todoItem);
-            Items.Add(todoItem);
+            get { return this.conflictsOnClient; }
+            set { this.Set(ref conflictsOnClient, value); }
         }
 
-        private async void RefreshTodoItems()
+        private async Task RefreshTodoItems()
         {
+            MobileServiceConflictsResolvedException exception = null;
             try
             {
                 // This code refreshes the entries in the list view be querying the TodoItems table.
@@ -80,55 +91,98 @@ namespace Todo.ViewModels
                 Items = await todoTable
                     .Where(todoItem => todoItem.Complete == false)
                     .IncludeTotalCount()
+                    .WithParameters(ConflictsOnClient ? param : empty)
                     .ToCollectionAsync();
             }
-            catch
+            catch (MobileServiceInvalidOperationException e)
             {
+                Messenger.Default.Send(new ShowDialogMessage("Error loading items", exception.Message, new[] { new Button("OK", b => { }) }));
                 Items = null;
             }
+            catch (MobileServiceConflictsResolvedException e)
+            {
+                exception = e;
+            }
+
+            if (exception != null)
+            {
+                await this.RefreshTodoItems();
+            }
         }
 
-        private async void Save()
+        private async Task SaveTodoItem()
         {
-            var todoItem = new TodoItem2 { Text = this.Text, Guid = Guid.NewGuid() };
+            var todoItem = new TodoItem { Text = this.Text };
+
+            MobileServiceConflictsResolvedException exception = null;
             try
             {
-                await InsertTodoItem(todoItem);
+                // This code inserts a new TodoItem into the database. When the operation completes
+                // and Mobile Services has assigned an Id, the item is added to the CollectionView
+                await todoTable.InsertAsync(todoItem, ConflictsOnClient ? param : empty);
+                Items.Add(todoItem);
             }
-            catch (Exception e)
+            catch (MobileServiceInvalidOperationException e)
             {
+                Messenger.Default.Send(new ShowDialogMessage("Error inserting item", exception.Message, new[] { new Button("OK", b => { }) }));
+            }
+            catch (MobileServiceConflictsResolvedException e)
+            {
+                exception = e;
+            }
 
+            if (exception != null)
+            {
+                await this.RefreshTodoItems();
             }
         }
 
-        private async void Complete(TodoItem2 item)
+        private async Task UpdateTodoItem(TodoItem item)
         {
+            MobileServiceConflictsResolvedException exception = null;
             try
             {
                 // This code takes a freshly completed TodoItem and updates the database. When the MobileService 
                 // responds, the item is removed from the list 
-                item.Complete = true;
-                await todoTable.UpdateAsync(item);
-                items.Remove(item);
+                await todoTable.UpdateAsync(item, ConflictsOnClient ? param : empty);
             }
-            catch
+            catch (MobileServiceInvalidOperationException e)
             {
+                Messenger.Default.Send(new ShowDialogMessage("Error updating item", exception.Message, new[] { new Button("OK", b => { }) }));
+            }
+            catch (MobileServiceConflictsResolvedException e)
+            {
+                exception = e;
+            }
 
+            if (exception != null)
+            {
+                await this.RefreshTodoItems();
             }
         }
 
-        private async void Remove(TodoItem2 item)
+        private async Task RemoveTodoItem(TodoItem item)
         {
+            MobileServiceConflictsResolvedException exception = null;
             try
             {
                 // This code takes a freshly completed TodoItem and updates the database. When the MobileService 
                 // responds, the item is removed from the list 
-                await todoTable.DeleteAsync(item);
+                await todoTable.DeleteAsync(item, ConflictsOnClient ? param : empty);
                 items.Remove(item);
             }
-            catch
+            catch (MobileServiceInvalidOperationException e)
             {
+                Messenger.Default.Send(new ShowDialogMessage("Error deleting item", exception.Message, new[] { new Button("OK", b => { }) }));
+            }
+            catch (MobileServiceConflictsResolvedException e)
+            {
+                exception = e;
+            }
 
+            if (exception != null)
+            {
+                await this.RefreshTodoItems();
             }
         }
     }

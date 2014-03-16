@@ -23,10 +23,10 @@ namespace Todo
         {
             this.InitializeComponent();
         }
-        
-        public async void Test()
+
+        private async void ToDoText_LostFocus(object sender, RoutedEventArgs e)
         {
-            await TaskEx.FromResult(10);
+
         }
     }
 }

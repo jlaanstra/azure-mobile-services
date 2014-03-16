@@ -8,7 +8,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
-    xmlns:behaviors="clr-namespace:Todo.Behavior"
+    xmlns:behaviors="clr-namespace:Todo.Behaviors"
     xmlns:toolkit="clr-namespace:Microsoft.Phone.Controls;assembly=Microsoft.Phone.Controls.Toolkit"
     mc:Ignorable="d"
     DataContext="{Binding MainViewModel, Source={StaticResource Locator}}"
@@ -36,8 +36,8 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
@@ -47,22 +47,27 @@
             <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Enter some text below and click Save to insert a new TodoItem item into your database" TextWrapping="Wrap" Margin="12"/>
             <TextBox Grid.Row="1" Grid.Column="0" Name="TodoInput" Text="{Binding Text, Mode=TwoWay}" />
             <Button Grid.Row ="1" Grid.Column="1" Name="ButtonSave" Command="{Binding SaveCommand}">Save</Button>
-            <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="Click refresh below to load the unfinished TodoItems from your database. Use the checkbox to complete and update your TodoItems" TextWrapping="Wrap" Margin="12" />
-            <Button Grid.Row="3" Grid.ColumnSpan="2" Name="ButtonRefresh" Command="{Binding RefreshCommand}">Refresh</Button>
-            <phone:LongListSelector Grid.Row="4" Grid.ColumnSpan="2" Name="ListItems" ItemsSource="{Binding Items}">
+            <Button Grid.Row="2" Grid.ColumnSpan="2" Name="ButtonRefresh" Command="{Binding RefreshCommand}">Refresh</Button>
+            <phone:LongListSelector Grid.Row="3" Grid.ColumnSpan="2" Name="ListItems" ItemsSource="{Binding Items}">
                 <phone:LongListSelector.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
-                            <CheckBox Name="CheckBoxComplete" IsChecked="{Binding Complete, Mode=TwoWay}" Content="{Binding Text}" Margin="10,5" VerticalAlignment="Center">
+                        <Grid>
+                            <CheckBox Name="CheckBoxComplete" IsChecked="{Binding Complete, Mode=TwoWay}" Margin="10,5" VerticalAlignment="Center">
                                 <i:Interaction.Behaviors>
                                     <behaviors:CheckedBehavior Command="{Binding ElementName=root, Path=DataContext.CompletedCommand}" CommandParameter="{Binding}" />
                                 </i:Interaction.Behaviors>
                             </CheckBox>
-                        </StackPanel>
+                            <TextBox x:Name="ToDoText" Width="330" Text="{Binding Text, Mode=TwoWay}" AcceptsReturn="False">
+                                <i:Interaction.Behaviors>
+                                    <behaviors:TextBoxFocusBehavior Command="{Binding ElementName=root, Path=DataContext.UpdateTextCommand}" CommandParameter="{Binding}" />
+                                </i:Interaction.Behaviors>
+                            </TextBox>
+                        </Grid>
                     </DataTemplate>
                 </phone:LongListSelector.ItemTemplate>
             </phone:LongListSelector>
-            <toolkit:ToggleSwitch Grid.Row="5" Grid.ColumnSpan="2" IsChecked="{Binding IsOnline, Mode=TwoWay}"/>
+            <toolkit:ToggleSwitch Header="Online" Margin="0,0,0,-12" Grid.Row="4" Grid.ColumnSpan="2" IsChecked="{Binding IsOnline, Mode=TwoWay}"/>
+            <toolkit:ToggleSwitch Header="Conflicts on Client" Margin="0,-12,0,-12" Grid.Row="5" Grid.ColumnSpan="2" IsChecked="{Binding ConflictsOnClient, Mode=TwoWay}"/>
         </Grid>
     </Grid>
 </phone:PhoneApplicationPage>

@@ -35,13 +35,7 @@ namespace Todo.ViewModels
             ServiceLocator.SetLocatorProvider(() => SimpleIoc.Default);
 
             ToggableNetworkInformation networkInfo = new ToggableNetworkInformation();
-
             SimpleIoc.Default.Register<INetworkInformation>(() => networkInfo);
-
-            SimpleIoc.Default.Register<ICacheProvider, TimestampCacheProvider>();
-
-            SimpleIoc.Default.Register<IStructuredStorage, SQLiteStructuredStorage>();
-
             SimpleIoc.Default.Register<NetworkInformationDelegate>(() =>
             {
                 return new NetworkInformationDelegate(() => networkInfo.IsOnline, b => networkInfo.IsOnline = b);
@@ -49,15 +43,13 @@ namespace Todo.ViewModels
 
             SimpleIoc.Default.Register<MainViewModel>();
 
-            DelegatingHandler handler = new CacheHandler(SimpleIoc.Default.GetInstance<ICacheProvider>());
-                        
-            // This MobileServiceClient has been configured to communicate with your Mobile Service's url
-            // and application key. You're all set to start working with your Mobile Service!
+            // Configure your mobile service
             MobileServiceClient MobileService = new MobileServiceClient(
-                "https://YOURAPP.azure-mobile.net/",
-                "YOURKEY",
-                handler
+                Constants.MobileServiceUrl,
+                Constants.MobileServiceKey
             );
+            MobileService = MobileService.UseOfflineDataCapabilitiesForTables(
+                SimpleIoc.Default.GetInstance<INetworkInformation>(), new DialogConflictResolver());
 
             SimpleIoc.Default.Register<IMobileServiceClient>(() => MobileService);
         }

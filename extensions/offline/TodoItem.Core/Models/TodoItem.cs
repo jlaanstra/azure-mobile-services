@@ -9,7 +9,8 @@ using Newtonsoft.Json;
 
 namespace Todo
 {
-    public class TodoItem2
+    [DataTable("TodoItem2")]
+    public class TodoItem
     {
         [JsonProperty("id")]
         public string Id { get; set; }
