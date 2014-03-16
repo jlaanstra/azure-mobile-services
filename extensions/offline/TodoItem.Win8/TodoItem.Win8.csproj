@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\SQLitePCL.3.8.2.0\build\netcore45\SQLitePCL.props" Condition="Exists('..\packages\SQLitePCL.3.8.2.0\build\netcore45\SQLitePCL.props')" />
+  <Import Project="..\packages\SQLitePCL.3.8.3.1\build\netcore45\SQLitePCL.props" Condition="Exists('..\packages\SQLitePCL.3.8.3.1\build\netcore45\SQLitePCL.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -147,6 +147,7 @@
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
     <Compile Include="Behaviors\CheckedBehavior.cs" />
+    <Compile Include="Behaviors\TextBoxFocusBehavior.cs" />
     <Compile Include="MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
@@ -200,14 +201,14 @@
     <SDKReference Include="Microsoft.VCLibs, version=11.0">
       <Name>Microsoft Visual C++ Runtime Package</Name>
     </SDKReference>
-    <SDKReference Include="SQLite.WinRT, version=3.8.3">
-      <Name>SQLite for Windows Runtime %28SQLite.WinRT, version=3.8.3%29</Name>
+    <SDKReference Include="SQLite.WinRT, version=3.8.4">
+      <Name>SQLite for Windows Runtime %28SQLite.WinRT, version=3.8.4%29</Name>
     </SDKReference>
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="GalaSoft.MvvmLight">
+    <Reference Include="GalaSoft.MvvmLight, Version=4.2.30.16997, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Portable.MvvmLightLibs.4.2.30.1\lib\win8\GalaSoft.MvvmLight.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="GalaSoft.MvvmLight.Extras">
       <HintPath>..\packages\Portable.MvvmLightLibs.4.2.30.1\lib\win8\GalaSoft.MvvmLight.Extras.dll</HintPath>
@@ -241,9 +242,9 @@
       <HintPath>..\packages\Newtonsoft.Json.5.0.8\lib\netcore45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="SQLitePCL">
-      <HintPath>..\packages\SQLitePCL.3.8.2.0\lib\netcore45\SQLitePCL.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="SQLitePCL, Version=3.8.3.1, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\SQLitePCL.3.8.3.1\lib\netcore45\SQLitePCL.dll</HintPath>
     </Reference>
     <Reference Include="System.Net.Http.Extensions, Version=2.2.18.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -274,10 +275,10 @@
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\packages\SQLitePCL.3.8.2.0\build\netcore45\SQLitePCL.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SQLitePCL.3.8.2.0\build\netcore45\SQLitePCL.props'))" />
-    <Error Condition="!Exists('..\packages\SQLitePCL.3.8.2.0\build\netcore45\SQLitePCL.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SQLitePCL.3.8.2.0\build\netcore45\SQLitePCL.targets'))" />
+    <Error Condition="!Exists('..\packages\SQLitePCL.3.8.3.1\build\netcore45\SQLitePCL.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SQLitePCL.3.8.3.1\build\netcore45\SQLitePCL.props'))" />
+    <Error Condition="!Exists('..\packages\SQLitePCL.3.8.3.1\build\netcore45\SQLitePCL.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SQLitePCL.3.8.3.1\build\netcore45\SQLitePCL.targets'))" />
   </Target>
-  <Import Project="..\packages\SQLitePCL.3.8.2.0\build\netcore45\SQLitePCL.targets" Condition="Exists('..\packages\SQLitePCL.3.8.2.0\build\netcore45\SQLitePCL.targets')" />
+  <Import Project="..\packages\SQLitePCL.3.8.3.1\build\netcore45\SQLitePCL.targets" Condition="Exists('..\packages\SQLitePCL.3.8.3.1\build\netcore45\SQLitePCL.targets')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

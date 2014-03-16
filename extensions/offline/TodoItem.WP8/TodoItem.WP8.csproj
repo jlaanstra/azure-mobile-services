@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\SQLitePCL.3.8.2.0\build\wp8\SQLitePCL.props" Condition="Exists('..\packages\SQLitePCL.3.8.2.0\build\wp8\SQLitePCL.props')" />
+  <Import Project="..\packages\SQLitePCL.3.8.3.1\build\wp8\SQLitePCL.props" Condition="Exists('..\packages\SQLitePCL.3.8.3.1\build\wp8\SQLitePCL.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -98,6 +98,9 @@
     </Compile>
     <Compile Include="..\TodoItem.Win8\Behaviors\CheckedBehavior.cs">
       <Link>Behaviors\CheckedBehavior.cs</Link>
+    </Compile>
+    <Compile Include="..\TodoItem.Win8\Behaviors\TextBoxFocusBehavior.cs">
+      <Link>Behaviors\TextBoxFocusBehavior.cs</Link>
     </Compile>
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
@@ -218,13 +221,13 @@
       <HintPath>..\packages\Newtonsoft.Json.5.0.8\lib\portable-net45+wp80+win8\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="SQLitePCL">
-      <HintPath>..\packages\SQLitePCL.3.8.2.0\lib\wp8\SQLitePCL.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="SQLitePCL, Version=3.8.3.1, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\SQLitePCL.3.8.3.1\lib\wp8\SQLitePCL.dll</HintPath>
     </Reference>
-    <Reference Include="SQLitePCL.Ext.WindowsPhone8.RuntimeProxy">
-      <HintPath>..\packages\SQLitePCL.3.8.2.0\lib\wp8\SQLitePCL.Ext.WindowsPhone8.RuntimeProxy.winmd</HintPath>
-      <Private>True</Private>
+    <Reference Include="SQLitePCL.Ext.WindowsPhone8.RuntimeProxy, Version=255.255.255.255, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\SQLitePCL.3.8.3.1\lib\wp8\SQLitePCL.Ext.WindowsPhone8.RuntimeProxy.winmd</HintPath>
     </Reference>
     <Reference Include="System.Net.Http, Version=1.5.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -241,8 +244,8 @@
     <Reference Include="System.Windows.Interactivity, Version=3.9.5.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
   </ItemGroup>
   <ItemGroup>
-    <SDKReference Include="SQLite.WP80, Version=3.8.3">
-      <Name>SQLite for Windows Phone %28SQLite.WP80, Version=3.8.3%29</Name>
+    <SDKReference Include="SQLite.WP80, Version=3.8.4">
+      <Name>SQLite for Windows Phone %28SQLite.WP80, Version=3.8.4%29</Name>
     </SDKReference>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\$(TargetFrameworkIdentifier)\$(TargetFrameworkVersion)\Microsoft.$(TargetFrameworkIdentifier).$(TargetFrameworkVersion).Overrides.targets" />
@@ -264,8 +267,8 @@
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\packages\SQLitePCL.3.8.2.0\build\wp8\SQLitePCL.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SQLitePCL.3.8.2.0\build\wp8\SQLitePCL.props'))" />
-    <Error Condition="!Exists('..\packages\SQLitePCL.3.8.2.0\build\wp8\SQLitePCL.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SQLitePCL.3.8.2.0\build\wp8\SQLitePCL.targets'))" />
+    <Error Condition="!Exists('..\packages\SQLitePCL.3.8.3.1\build\wp8\SQLitePCL.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SQLitePCL.3.8.3.1\build\wp8\SQLitePCL.props'))" />
+    <Error Condition="!Exists('..\packages\SQLitePCL.3.8.3.1\build\wp8\SQLitePCL.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\SQLitePCL.3.8.3.1\build\wp8\SQLitePCL.targets'))" />
   </Target>
-  <Import Project="..\packages\SQLitePCL.3.8.2.0\build\wp8\SQLitePCL.targets" Condition="Exists('..\packages\SQLitePCL.3.8.2.0\build\wp8\SQLitePCL.targets')" />
+  <Import Project="..\packages\SQLitePCL.3.8.3.1\build\wp8\SQLitePCL.targets" Condition="Exists('..\packages\SQLitePCL.3.8.3.1\build\wp8\SQLitePCL.targets')" />
 </Project>
